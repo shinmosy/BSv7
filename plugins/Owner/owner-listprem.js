@@ -7,7 +7,7 @@ let handler = async (m, {
         let prem = global.prems
             .map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
             .filter(v => v !== conn.user.jid);
-        let teks = `▢ *PREMIUM USERS*\n─────────────\n` + prem.map(v => '- @' + v.replace(/@.+/, '')).join('\n');
+        let teks = "▢ *PREMIUM USERS*\n─────────────\n" + prem.map(v => '- @' + v.replace(/@.+/, '')).join('\n');
         await m.reply(teks, null, {
             mentions: await conn.parseMention(teks)
         });
@@ -26,19 +26,11 @@ let handler = async (m, {
         let sortedP = user.map(toNumber('premiumTime')).sort(sort('premiumTime'));
         let len = args[0] && args[0].length > 0 ? Math.min(100, Math.max(parseInt(args[0]), 10)) : Math.min(10, sortedP.length);
 
-        let capt = `*PREMIUM*\n┌✦ *My Premium Time:*\n┊• *Name:* ${conn.getName(m.sender)}\n${prem ? `┊• *PremiumTime:* ${waktu}` : '┊• *PremiumTime:* Expired 🚫'}\n┗━═┅═━––––––๑\n\n•·–––––––––––––––––––––·•\n${sortedP.slice(0, len).map(({ jid, name, premiumTime, registered }) =>
-            `┌✦
-        $ {
-            registered ? name : conn.getName(jid)
-        }┊•
-        wa.me / $ {
-            jid.split`@` [0]
-        }
-        $ {
-            premiumTime > 0 ? ` ${clockString(premiumTime - new Date() * 1)}` : '┊ *EXPIRED 🚫*'
-        }
-        `
-        ).join('\n')}\n┗━═┅═━––––––๑`.trim();
+        let capt = " *PREMIUM*\n┌✦ *My Premium Time:*\n┊• *Name:* " + conn.getName(m.sender) + "\n" + (prem ? "┊• *PremiumTime:* " + waktu : '┊• *PremiumTime:* Expired 🚫') + "\n┗━═┅═━––––––๑\n\n•·–––––––––––––––––––––·•\n" + sortedP.slice(0, len).map(({ jid, name, premiumTime, registered }) =>
+            "┌✦\n" +
+            (registered ? name : conn.getName(jid)) + "┊• wa.me/" + jid.split`@`[0] +
+            (premiumTime > 0 ? ` ${clockString(premiumTime - new Date() * 1)}` : '┊ *EXPIRED 🚫*')
+        ).join('\n') + "\n┗━═┅═━––––––๑".trim();
         await m.reply(capt, null, {
             mentions: await conn.parseMention(capt)
         });
