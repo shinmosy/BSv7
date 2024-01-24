@@ -9,7 +9,7 @@ import {
 import {
     createRequire
 } from "module";
-import * as path from 'path';
+import path from 'path';
 import {
     fileURLToPath,
     pathToFileURL
@@ -17,18 +17,25 @@ import {
 import {
     platform
 } from 'process';
-global.__filename = function filename(pathURL = import.meta.url, rmPrefix = platform !== 'win32') {
-    return rmPrefix ? /file:\/\/\//.test(pathURL) ? fileURLToPath(pathURL) : pathURL : pathToFileURL(pathURL).toString()
-}
+global.__filename = function filename(
+  pathURL = import.meta.url,
+  rmPrefix = platform !== "win32"
+) {
+  return rmPrefix
+    ? /file:\/\/\//.test(pathURL)
+      ? fileURLToPath(pathURL)
+      : pathURL
+    : pathToFileURL(pathURL).toString();
+};
 global.__dirname = function dirname(pathURL) {
-    return path.dirname(global.__filename(pathURL, true))
-}
+  return path.dirname(global.__filename(pathURL, true));
+};
 global.__require = function require(dir = import.meta.url) {
     return createRequire(dir)
 }
 
-import * as ws from 'ws';
 import * as glob from 'glob';
+
 import {
     readdirSync,
     statSync,
@@ -77,20 +84,7 @@ import {
     cloudDBAdapter
 } from './lib/cloudDBAdapter.js';
 
-const {
-    DisconnectReason,
-    useMultiFileAuthState,
-    MessageRetryMap,
-    fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore,
-    makeInMemoryStore,
-    proto,
-    jidNormalizedUser,
-    PHONENUMBER_MCC,
-    Browsers,
-    delay
-} = await (await import('@whiskeysockets/baileys')).default;
-
+import * as Baileys from "@whiskeysockets/baileys"
 import readline from "readline"
 import {
     parsePhoneNumber
@@ -114,9 +108,6 @@ const question = (text) => new Promise((resolve) => rl.question(text, resolve))
 import NodeCache from "node-cache"
 const msgRetryCounterCache = new NodeCache()
 
-const {
-    CONNECTING
-} = ws
 const {
     chain
 } = lodash
@@ -173,10 +164,8 @@ global.loadDatabase = async function loadDatabase() {
 
 global.authFile = "TaylorSession";
 
-const msgRetryCounterMap = (MessageRetryMap) => {};
-const {
-    version
-} = await fetchLatestBaileysVersion();
+const { version, isLatest } = await Baileys.fetchLatestWaWebVersion().catch(() => Baileys.fetchLatestBaileysVersion());
+  console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     console.clear();
@@ -211,16 +200,17 @@ var [
 ] = await Promise.all([
     Helper.checkFileExists(authFolder + '/creds.json'),
     Helper.checkFileExists(authFile),
-    storeSystem.useMultiFileAuthState(authFolder)
+    Baileys.useMultiFileAuthState(authFolder)
 ])
+/*
+const store = storeSystem.makeInMemoryStore()
+*/
+const logger = Pino({
+  level: "silent"
+});
 
-//var store = storeSystem.makeInMemoryStore()
-const store = makeInMemoryStore({
-    logger: Pino({
-        level: "fatal"
-    }).child({
-        level: "fatal"
-    })
+const store = Baileys.makeInMemoryStore({
+    logger
 })
 
 // Convert single auth to multi auth
@@ -229,7 +219,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await storeSystem.useMultiFileAuthState(authFolder);
+        authState = await Baileys.useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -267,34 +257,30 @@ const connectionOptions = {
         }
         return message;
     },
-    msgRetryCounterMap,
-    logger: Pino({
-        level: "fatal"
-    }).child({
-        level: "fatal"
-    }),
+    msgRetryCounterMap: {},
+    logger,
     auth: {
         creds: authState.state.creds,
-        keys: makeCacheableSignalKeyStore(authState.state.keys, Pino({
-            level: "fatal"
-        }).child({
-            level: "fatal"
-        })),
+        keys: Baileys.makeCacheableSignalKeyStore(authState.state.keys, logger),
     },
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
         if (store) {
-            let jid = jidNormalizedUser(key.remoteJid)
+            let jid = Baileys.jidNormalizedUser(key.remoteJid)
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
-        return proto.Message.fromObject({});
+        return Baileys.proto.Message.fromObject({});
     },
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
     msgRetryCounterCache,
-    defaultQueryTimeoutMs: undefined
+    defaultQueryTimeoutMs: undefined,
+    fireInitQueries: false,
+    shouldSyncHistoryMessage: false,
+    downloadHistory: false,
+    syncFullHistory: false
 };
 
 global.conn = makeWaSocket(connectionOptions);
@@ -310,7 +296,7 @@ if (pairingCode && !conn.authState.creds.registered) {
     let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
     console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
     phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-    if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+    if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
         console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
         console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
         console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -321,7 +307,7 @@ if (pairingCode && !conn.authState.creds.registered) {
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
     }
-    await delay(3000)
+    await Baileys.delay(3000)
     let code = await conn.requestPairingCode(phoneNumber)
     code = code?.match(/.{1,4}/g)?.join("-") || code
     global.codePairing = code
@@ -347,7 +333,7 @@ if (useMobile && !conn.authState.creds.registered) {
         let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-        if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+        if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
             console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
             console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
             console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -366,7 +352,7 @@ if (useMobile && !conn.authState.creds.registered) {
     registration.phoneNumber = phoneNumber.format("E.164")
     registration.phoneNumberCountryCode = phoneNumber.countryCallingCode
     registration.phoneNumberNationalNumber = phoneNumber.nationalNumber
-    const mcc = PHONENUMBER_MCC[phoneNumber.countryCallingCode]
+    const mcc = Baileys.PHONENUMBER_MCC[phoneNumber.countryCallingCode]
     registration.phoneNumberMobileCountryCode = mcc
     async function enterCode() {
         try {
@@ -563,7 +549,6 @@ async function purgeOldFiles() {
 }
 
 global.connectionAttempts = 0
-global.connectionOpen = false
 async function connectionUpdate(update) {
     const {
         connection,
@@ -575,7 +560,7 @@ async function connectionUpdate(update) {
     } = update;
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
-    if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
+    if (code && code !== Baileys.DisconnectReason.loggedOut && conn?.ws.socket == null) {
         conn.logger.info(await global.reloadHandler(true).catch(console.error));
     }
     if (global.db.data == null) loadDatabase();
@@ -592,7 +577,6 @@ async function connectionUpdate(update) {
     }
 
     if (connection === 'open') {
-        global.connectionOpen = true
         try {
             const {
                 jid
@@ -777,62 +761,54 @@ global.reloadHandler = async function(restatConn) {
 
 const pluginFolder = path.resolve(__dirname, 'plugins');
 const pluginFilter = (filename) => /\.js$/.test(filename);
-const filename = (file) => file.replace(/^.*[\\\/]/, '');
 global.plugins = {};
 
 async function filesInit() {
-    try {
-        const pluginsDirectory = path.resolve(__dirname, 'plugins');
-        const pattern = path.resolve(pluginsDirectory, '**/*.js');
-        const CommandsFiles = glob.sync(pattern, {
-            ignore: ['**/node_modules/**']
-        });
+    const CommandsFiles = glob.sync(path.resolve(pluginFolder, '**/*.js'), {
+        ignore: ['**/node_modules/**']
+    });
+    
+    const successMessages = [];
+    const errorMessages = [];
 
-        const importPromises = CommandsFiles.map(async (file) => {
-            const moduleName = path.join('/plugins', path.relative(pluginsDirectory, file));
-
-            try {
-                const module = await import(file);
-                global.plugins[moduleName] = module.default || module;
-
-                return moduleName;
-            } catch (e) {
-                conn.logger.error(e);
-                delete global.plugins[moduleName];
-                return {
-                    moduleName,
-                    filePath: file
-                };
-            }
-        });
-
-        const results = await Promise.all(importPromises);
-        const successMessages = results.filter((result) => typeof result === 'string');
-        const errorMessages = results.filter((result) => typeof result === 'object');
-
-        conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
-        conn.logger.info(`✅ Success Plugins:\n${successMessages.length} total.`);
-        conn.logger.error(`❌ Error Plugins:\n${errorMessages.length} total`);
+    for (const file of CommandsFiles) {
+        const moduleName = path.join('/plugins', path.relative(pluginFolder, file));
 
         try {
-            await conn.reply(
-                nomorown + '@s.whatsapp.net',
-                '🤖 *Loaded Plugins Report* 🤖\n' +
-                `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
-                `✅ *Success:* ${successMessages.length}\n` +
-                `❌ *Error:* ${errorMessages.length}\n` +
-                (errorMessages.length > 0 ?
-                    `  ❗ *Errors:* ${errorMessages.map((error, index) => `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`).join('')}\n` : ''),
-                null
-            );
+            const module = await (await import(file));
+            global.plugins[moduleName] = module.default ? module.default : module;
+            successMessages.push(moduleName);
         } catch (e) {
-            console.clear();
-            console.log('Bot loaded plugins.');
+            conn.logger.error(e);
+            delete global.plugins[moduleName];
+            errorMessages.push({
+                moduleName,
+                filePath: file,
+                message: e.message
+            });
         }
-    } catch (e) {
-        conn.logger.error(e);
     }
-}
+
+    conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
+    conn.logger.info(`✅ Success Plugins:\n${successMessages.length} total.`);
+    conn.logger.error(`❌ Error Plugins:\n${errorMessages.length} total`);
+
+    try {
+        await conn.reply(
+            nomorown + '@s.whatsapp.net',
+            `🤖 *Loaded Plugins Report* 🤖\n` +
+            `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
+            `✅ *Success:* ${successMessages.length}\n` +
+            `❌ *Error:* ${errorMessages.length}\n` +
+            (errorMessages.length > 0 ?
+                `  ❗ *Errors:* ${errorMessages.map((error, index) => `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`).join('')}\n` : ''),
+            null
+        );
+    } catch (e) {
+        console.clear();
+        console.log('Bot loaded plugins.');
+    }
+};
 
 global.reload = async (_ev, filename) => {
     if (pluginFilter(filename)) {
@@ -968,78 +944,31 @@ const createSpinner = (text, spinnerType) => {
 
 let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambungkan...\n'), 'moon').start();
 
-while (!global.connectionOpen) {
+do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await delay(1000);
-}
+    await Baileys.delay(1000);
+} while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
 connectionCheckSpinner.stop();
 
-let loadDBSpinner;
-let loadConfigSpinner;
-let filesInitSpinner;
-let watchFilesSpinner;
-let quickTestSpinner;
-let runSyntaxCheckSpinner;
-let executeActionsSpinner;
+const mainSpinner = createSpinner(chalk.bold.yellow('Proses sedang berlangsung...\n'), 'moon').start();
 
-try {
-    loadDBSpinner = createSpinner(chalk.bold.cyan('Load Database...\n'), 'moon').start();
-    if (global.connectionOpen) await loadDatabase();
-    loadDBSpinner.render();
-    loadDBSpinner.succeed(chalk.bold.green('Sukses Load Database\n'));
-    loadDBSpinner.stop();
-
-    loadConfigSpinner = createSpinner(chalk.bold.cyan('Memuat konfigurasi...\n'), 'moon').start();
-    if (global.connectionOpen) await loadConfig();
-    loadConfigSpinner.render();
-    loadConfigSpinner.succeed(chalk.bold.green('Sukses memuat konfigurasi.\n'));
-    loadConfigSpinner.stop();
-
-    filesInitSpinner = createSpinner(chalk.bold.cyan('Inisialisasi file...\n'), 'moon').start();
-    if (global.connectionOpen) await filesInit();
-    filesInitSpinner.render();
-    filesInitSpinner.succeed(chalk.bold.green('Sukses menginisialisasi file.\n'));
-    filesInitSpinner.stop();
-
-    watchFilesSpinner = createSpinner(chalk.bold.cyan('Mengawasi file...\n'), 'moon').start();
-    if (global.connectionOpen) await watchFiles();
-    watchFilesSpinner.render();
-    watchFilesSpinner.succeed(chalk.bold.green('Sukses mengawasi file.\n'));
-    watchFilesSpinner.stop();
-
-    quickTestSpinner = createSpinner(chalk.bold.cyan('Melakukan Quick Test...\n'), 'moon').start();
-    if (global.connectionOpen) await _quickTest();
-    quickTestSpinner.render();
-    quickTestSpinner.succeed(chalk.bold.green('Sukses Quick Test.\n'));
-    quickTestSpinner.stop();
-
-    runSyntaxCheckSpinner = createSpinner(chalk.bold.cyan('Melakukan Check Syntax File ES6...\n'), 'moon').start();
-    if (global.connectionOpen) await runSyntaxCheck();
-    runSyntaxCheckSpinner.render();
-    runSyntaxCheckSpinner.succeed(chalk.bold.green('Sukses Check Syntax File ES6.\n'));
-    runSyntaxCheckSpinner.stop();
-
-    executeActionsSpinner = createSpinner(chalk.bold.cyan('Menjalankan Aksi...\n'), 'moon').start();
-    if (global.connectionOpen) await executeActions();
-    executeActionsSpinner.render();
-    executeActionsSpinner.succeed(chalk.bold.green('Semua proses berhasil dieksekusi.\n'));
-    executeActionsSpinner.stop();
-} catch (error) {
-    console.clear();
-    console.error(chalk.bold.red(`Error saat mengeksekusi aksi: ${error.message}`));
-
-    if (filesInitSpinner) filesInitSpinner.fail(chalk.bold.red('Gagal menginisialisasi file.'));
-    if (watchFilesSpinner) watchFilesSpinner.fail(chalk.bold.red('Gagal mengawasi file.'));
-    if (quickTestSpinner) quickTestSpinner.fail(chalk.bold.red('Gagal Quick Test.'));
-    if (runSyntaxCheckSpinner) runSyntaxCheckSpinner.fail(chalk.bold.red('Gagal Check Syntax File ES6.'));
-    if (executeActionsSpinner) executeActionsSpinner.fail(chalk.bold.red('Gagal mengeksekusi aksi.'));
-    if (loadDBSpinner) loadDBSpinner.fail(chalk.bold.red('Gagal Load Database'));
-
-    process.exit(1);
-}
+loadDatabase()
+  .then(() => loadConfig())
+  .then(() => filesInit())
+  .then(() => watchFiles())
+  .then(() => _quickTest())
+  .then(() => {
+    mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!\n'));
+  })
+  .catch(error => {
+    mainSpinner.fail(chalk.bold.red(`Error: ${error}\n`));
+  })
+  .finally(() => {
+    mainSpinner.stop();
+  });
 
 Object.freeze(global.reload);
 watch(pluginFolder, global.reload);
@@ -1047,7 +976,7 @@ watch(pluginFolder, global.reload);
 let reloadHandlerSpinner;
 try {
     reloadHandlerSpinner = createSpinner(chalk.bold.cyan('Reload Handler...\n'), 'moon').start();
-    if (global.connectionOpen) await global.reloadHandler();
+    if (conn) await global.reloadHandler();
     reloadHandlerSpinner.render();
     reloadHandlerSpinner.succeed(chalk.bold.green('Sukses Reload Handler.\n'));
     reloadHandlerSpinner.stop();
@@ -1103,6 +1032,9 @@ async function _quickTest() {
 const actions = [{
         func: clearTmp,
         message: '\nPenyegaran Tempat Penyimpanan Berhasil ✅'
+    },{
+        func: clearSessions,
+        message: '\nClear Sessions Berhasil ✅'
     },
     {
         func: purgeSession,
