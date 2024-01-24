@@ -955,20 +955,15 @@ connectionCheckSpinner.stop();
 
 const mainSpinner = createSpinner(chalk.bold.yellow('Proses sedang berlangsung...\n'), 'moon').start();
 
-loadDatabase()
-  .then(() => loadConfig())
-  .then(() => filesInit())
-  .then(() => watchFiles())
-  .then(() => _quickTest())
-  .then(() => {
-    mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!\n'));
-  })
-  .catch(error => {
-    mainSpinner.fail(chalk.bold.red(`Error: ${error}\n`));
-  })
-  .finally(() => {
-    mainSpinner.stop();
-  });
+Promise.resolve()
+  .then(() => loadDatabase().catch(error => Promise.reject(`Error in step 1: ${error}`)))
+  .then(() => loadConfig().catch(error => Promise.reject(`Error in step 2: ${error}`)))
+  .then(() => filesInit().catch(error => Promise.reject(`Error in step 3: ${error}`)))
+  .then(() => watchFiles().catch(error => Promise.reject(`Error in step 4: ${error}`)))
+  .then(() => _quickTest().catch(error => Promise.reject(`Error in step 5: ${error}`)))
+  .then(() => mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!\n')))
+  .catch(error => mainSpinner.fail(chalk.bold.red(`${error}\n`)))
+  .finally(() => mainSpinner.stop());
 
 Object.freeze(global.reload);
 watch(pluginFolder, global.reload);
@@ -1054,7 +1049,7 @@ const actions = [{
     },
 ];
 
-export const executeActions = async () => {
+export async function executeActions() {
     for (const {
             func,
             message
