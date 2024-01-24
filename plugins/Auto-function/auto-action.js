@@ -11,13 +11,15 @@ export async function before(m) {
         try {
             const loadingSpinner = ora({
                 text: chalk.cyan('Menjalankan tugas berkala...'),
-                spinner: 'aesthetic'
+                spinner: 'moon'
             }).start();
 
             await executeActions();
+            loadingSpinner.render();
             loadingSpinner.succeed(chalk.green('Tugas berkala selesai.'));
         } catch (error) {
+        loadingSpinner.fail(chalk.red(`Gagal menjalankan tugas berkala: ${error.message}`));
             console.error(chalk.red(`Error during periodic execution: ${error.message}`));
         }
-    }, 24 * 60 * 60 * 1000);
+    }, 15 * 60 * 1000);
 }
