@@ -4,15 +4,13 @@ import {
 import {
     promisify
 } from 'util';
-import {
-    fileTypeFromBuffer
-} from "file-type";
+
 let handler = async (m, {
     conn,
     command,
     text
 }) => {
-    const querys = text.split(' ');
+    const querys = text.split(/\D+/).filter(Boolean);
     const pluginsList = Object.keys(global.plugins);
     const uniqueCategories = [];
 
@@ -47,7 +45,7 @@ let handler = async (m, {
 
             if (pluginIndex >= 1 && pluginIndex <= pluginNames.length) {
                 const selectedPlugin = pluginNames[pluginIndex - 1];
-                const commandToExecute = `cat ${selectedPlugin}`;
+                const commandToExecute = `cat ${selectedPlugin.slice(1)}`;
 
                 const execPromise = promisify(exec);
                 try {
@@ -55,21 +53,10 @@ let handler = async (m, {
                         stdout,
                         stderr
                     } = await execPromise(commandToExecute);
-                    const {
-                        key
-                    } = await m.reply(`/*\nSukses Get Plugin\n${selectedPlugin}\n*/\n\n${stdout}`);
-                    const buffer = Buffer.from(stdout, 'utf-8')
-                    const {
-                        mime
-                    } = await fileTypeFromBuffer(buffer)
-                    await conn.sendMessage(m.chat, {
-                        document: buffer,
-                        mimetype: mime,
-                        fileName: selectedPlugin.split('/').pop(),
-                        caption: 'Cek kode lengkapnya disini'
-                    }, {
-                        quoted: key
-                    });
+                    const rep = await conn.reply(m.chat, `/*\nSukses Get Plugin\n${selectedPlugin}\n${author}\n*/\n\n${stdout}`, m);
+const buffer = Buffer.from(stdout, 'utf-8');
+const mimeType = 'application/javascript';
+await conn.sendMessage(m.chat, { document: buffer, mimetype: mimeType, fileName: selectedPlugin.split('/').pop(), caption: 'Cek kode lengkapnya disini' }, { quoted: rep });
                 } catch (error) {
                     await m.reply(`*Error:* ${error.message}`);
                 }

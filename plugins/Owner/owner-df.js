@@ -10,7 +10,7 @@ let handler = async (m, {
     command,
     text
 }) => {
-    const querys = text.split(' ');
+    const querys = text.split(/\D+/).filter(Boolean);
     const pluginsList = Object.keys(global.plugins);
     const uniqueCategories = [];
 
@@ -45,7 +45,7 @@ let handler = async (m, {
 
             if (pluginIndex >= 1 && pluginIndex <= pluginNames.length) {
                 const selectedPlugin = pluginNames[pluginIndex - 1];
-                const commandToExecute = `rm -rf ${selectedPlugin}`;
+                const commandToExecute = `rm -rf ${selectedPlugin.slice(1)}`;
 
                 const execPromise = promisify(exec);
                 try {
