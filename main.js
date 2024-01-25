@@ -18,17 +18,17 @@ import {
     platform
 } from 'process';
 global.__filename = function filename(
-  pathURL = import.meta.url,
-  rmPrefix = platform !== "win32"
+    pathURL = import.meta.url,
+    rmPrefix = platform !== "win32"
 ) {
-  return rmPrefix
-    ? /file:\/\/\//.test(pathURL)
-      ? fileURLToPath(pathURL)
-      : pathURL
-    : pathToFileURL(pathURL).toString();
+    return rmPrefix ?
+        /file:\/\/\//.test(pathURL) ?
+        fileURLToPath(pathURL) :
+        pathURL :
+        pathToFileURL(pathURL).toString();
 };
 global.__dirname = function dirname(pathURL) {
-  return path.dirname(global.__filename(pathURL, true));
+    return path.dirname(global.__filename(pathURL, true));
 };
 global.__require = function require(dir = import.meta.url) {
     return createRequire(dir)
@@ -85,15 +85,15 @@ import {
 } from './lib/cloudDBAdapter.js';
 
 import Baileys, {
-fetchLatestWaWebVersion,
-fetchLatestBaileysVersion,
-useMultiFileAuthState,
-makeInMemoryStore,
-makeCacheableSignalKeyStore,
-jidNormalizedUser,
-PHONENUMBER_MCC,
-delay,
-DisconnectReason
+    fetchLatestWaWebVersion,
+    fetchLatestBaileysVersion,
+    useMultiFileAuthState,
+    makeInMemoryStore,
+    makeCacheableSignalKeyStore,
+    jidNormalizedUser,
+    PHONENUMBER_MCC,
+    delay,
+    DisconnectReason
 } from "@whiskeysockets/baileys"
 
 import readline from "readline"
@@ -175,8 +175,11 @@ global.loadDatabase = async function loadDatabase() {
 
 global.authFile = "TaylorSession";
 
-const { version, isLatest } = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
-  console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
+const {
+    version,
+    isLatest
+} = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
+console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     console.clear();
@@ -217,7 +220,7 @@ var [
 const store = storeSystem.makeInMemoryStore()
 */
 const logger = Pino({
-  level: "silent"
+    level: "silent"
 });
 
 const store = makeInMemoryStore({
@@ -637,7 +640,7 @@ async function filesInit() {
     const CommandsFiles = glob.sync(path.resolve(pluginFolder, '**/*.js'), {
         ignore: ['**/node_modules/**']
     });
-    
+
     const successMessages = [];
     const errorMessages = [];
 
@@ -823,17 +826,51 @@ do {
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
 connectionCheckSpinner.stop();
 
-const mainSpinner = createSpinner(chalk.bold.yellow('Proses sedang berlangsung...\n'), 'moon').start();
+const steps = [
+  loadDatabase,
+  loadConfig,
+  _quickTest,
+  filesInit,
+  watchFiles
+];
 
-Promise.resolve()
-  .then(() => loadDatabase().catch(error => Promise.reject(`Error in step 1: ${error}`)))
-  .then(() => loadConfig().catch(error => Promise.reject(`Error in step 2: ${error}`)))
-  .then(() => filesInit().catch(error => Promise.reject(`Error in step 3: ${error}`)))
-  .then(() => watchFiles().catch(error => Promise.reject(`Error in step 4: ${error}`)))
-  .then(() => _quickTest().catch(error => Promise.reject(`Error in step 5: ${error}`)))
-  .then(() => mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!\n')))
-  .catch(error => mainSpinner.fail(chalk.bold.red(`${error}\n`)))
-  .finally(() => mainSpinner.stop());
+const delayBetweenSteps = 3000;
+
+const mainSpinner = ora({
+  text: chalk.bold.yellow('Proses sedang berlangsung...'),
+  spinner: 'moon'
+}).start();
+
+const executeStep = async (step, index) => {
+  mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
+  await delay(index * delayBetweenSteps);
+
+  return step().then(result => {
+    mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
+    return result;
+  }).catch(error => {
+    mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
+    console.error(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
+    return `Error in step ${index + 1}: ${error}`;
+  });
+};
+
+Promise.all(steps.map((step, index) => executeStep(step, index)))
+  .then(results => {
+    results.forEach(result => {
+      if (typeof result === 'string') {
+        console.error(chalk.bold.red(result));
+      }
+    });
+    mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
+  })
+  .catch(error => {
+    mainSpinner.fail(chalk.bold.red(`${error}`));
+  })
+  .finally(() => {
+    mainSpinner.stop();
+  });
+
 
 Object.freeze(global.reload);
 watch(pluginFolder, global.reload);
@@ -1035,62 +1072,39 @@ async function purgeOldFiles() {
     }
 }
 
-const actions = [{
-        func: clearTmp,
-        message: '\nPenyegaran Tempat Penyimpanan Berhasil ✅'
-    },{
-        func: clearSessions,
-        message: '\nClear Sessions Berhasil ✅'
-    },
-    {
-        func: purgeSession,
-        message: '\nSesi-Sesi Tersimpan Sudah Dihapus ✅'
-    },
-    {
-        func: purgeSessionSB,
-        message: '\nSesi-Sesi Sub-Bot Telah Dihapus ✅'
-    },
-    {
-        func: purgeOldFiles,
-        message: '\nBerkas Lama Telah Dihapus ✅'
-    },
-    {
-        func: loadConfig,
-        message: '\nSukses Re-load config. ✅'
-    },
+const actions = [
+  { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
+  { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
+  { func: purgeSession, message: 'Sesi-Sesi Tersimpan Sudah Dihapus ✅', color: 'green' },
+  { func: purgeSessionSB, message: 'Sesi-Sesi Sub-Bot Telah Dihapus ✅', color: 'green' },
+  { func: purgeOldFiles, message: 'Berkas Lama Telah Dihapus ✅', color: 'green' },
+  { func: loadConfig, message: 'Sukses Re-load config. ✅', color: 'green' },
 ];
 
-export async function executeActions() {
-    for (const { func, message } of actions) {
-        try {
-            await func();
-            await delay(3000);
-            console.log(chalk.bold.cyanBright(`\n╭───────────────────────────────────···\n│\n│  ${message}\n│\n╰───────────────────────────────────···\n`));
-        } catch (error) {
-            console.error(chalk.bold.red(`Error executing action: ${error.message}`));
-            throw error;
-        }
+async function executeActions() {
+  let count = 1;
+  do {
+    for (const { func, message, color } of actions) {
+      try {
+        await func();
+        await delay(3000);
+        console.log(chalk.bold.yellow(`\n[${count++}]`) + ' ' + chalk.bold[color](message));
+      } catch (error) {
+        console.error(chalk.bold.red(`Error executing action: ${error.message}`));
+        throw error;
+      }
     }
-};
+    await new Promise(resolve => setTimeout(resolve, 3600000));
+  } while (true);
+}
+executeActions()
+  .then(() => console.log("Execution completed."))
+  .catch(error => console.error("Error in executeActions:", error))
+  .finally(() => console.log("Finally block executed."));
+
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
-    const units = [{
-            label: 'Hari',
-            value: Math.floor(ms / 86400000)
-        },
-        {
-            label: 'Jam',
-            value: Math.floor(ms / 3600000) % 24
-        },
-        {
-            label: 'Menit',
-            value: Math.floor(ms / 60000) % 60
-        },
-        {
-            label: 'Detik',
-            value: Math.floor(ms / 1000) % 60
-        }
-    ];
+    const units = ['Hari', 'Jam', 'Menit', 'Detik'].map((label, i) => ({ label, value: Math.floor(i < 2 ? ms / (86400000 / [1, 24][i]) : ms / [60000, 1000][i - 2]) % ([1, 60][i < 2 ? 0 : 1]) }));
     return units.map(unit => `${unit.value.toString().padStart(2, '0')} ${unit.label}`).join(' ');
 }
