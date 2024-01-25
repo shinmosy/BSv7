@@ -84,7 +84,18 @@ import {
     cloudDBAdapter
 } from './lib/cloudDBAdapter.js';
 
-import * as Baileys from "@whiskeysockets/baileys"
+import Baileys, {
+fetchLatestWaWebVersion,
+fetchLatestBaileysVersion,
+useMultiFileAuthState,
+makeInMemoryStore,
+makeCacheableSignalKeyStore,
+jidNormalizedUser,
+PHONENUMBER_MCC,
+delay,
+DisconnectReason
+} from "@whiskeysockets/baileys"
+
 import readline from "readline"
 import {
     parsePhoneNumber
@@ -164,7 +175,7 @@ global.loadDatabase = async function loadDatabase() {
 
 global.authFile = "TaylorSession";
 
-const { version, isLatest } = await Baileys.fetchLatestWaWebVersion().catch(() => Baileys.fetchLatestBaileysVersion());
+const { version, isLatest } = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
   console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
@@ -200,7 +211,7 @@ var [
 ] = await Promise.all([
     Helper.checkFileExists(authFolder + '/creds.json'),
     Helper.checkFileExists(authFile),
-    Baileys.useMultiFileAuthState(authFolder)
+    useMultiFileAuthState(authFolder)
 ])
 /*
 const store = storeSystem.makeInMemoryStore()
@@ -209,7 +220,7 @@ const logger = Pino({
   level: "silent"
 });
 
-const store = Baileys.makeInMemoryStore({
+const store = makeInMemoryStore({
     logger
 })
 
@@ -219,7 +230,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await Baileys.useMultiFileAuthState(authFolder);
+        authState = await useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -261,13 +272,13 @@ const connectionOptions = {
     logger,
     auth: {
         creds: authState.state.creds,
-        keys: Baileys.makeCacheableSignalKeyStore(authState.state.keys, logger),
+        keys: makeCacheableSignalKeyStore(authState.state.keys, logger),
     },
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
         if (store) {
-            let jid = Baileys.jidNormalizedUser(key.remoteJid)
+            let jid = jidNormalizedUser(key.remoteJid)
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
@@ -296,7 +307,7 @@ if (pairingCode && !conn.authState.creds.registered) {
     let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
     console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
     phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-    if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+    if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
         console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
         console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
         console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -307,7 +318,7 @@ if (pairingCode && !conn.authState.creds.registered) {
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
     }
-    await Baileys.delay(3000)
+    await delay(3000)
     let code = await conn.requestPairingCode(phoneNumber)
     code = code?.match(/.{1,4}/g)?.join("-") || code
     global.codePairing = code
@@ -333,7 +344,7 @@ if (useMobile && !conn.authState.creds.registered) {
         let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-        if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+        if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
             console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
             console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
             console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -352,7 +363,7 @@ if (useMobile && !conn.authState.creds.registered) {
     registration.phoneNumber = phoneNumber.format("E.164")
     registration.phoneNumberCountryCode = phoneNumber.countryCallingCode
     registration.phoneNumberNationalNumber = phoneNumber.nationalNumber
-    const mcc = Baileys.PHONENUMBER_MCC[phoneNumber.countryCallingCode]
+    const mcc = PHONENUMBER_MCC[phoneNumber.countryCallingCode]
     registration.phoneNumberMobileCountryCode = mcc
     async function enterCode() {
         try {
@@ -407,147 +418,6 @@ if (!opts['test']) {
 
 if (opts['server'])(await import('./server.js')).default(global.conn, PORT);
 
-async function clearTmp() {
-    try {
-        const tmp = [tmpdir(), path.join(__dirname, './tmp')];
-        const filenames = await Promise.all(tmp.map(async (dirname) => {
-            try {
-                const files = await readdirSync(dirname);
-                return Promise.all(files.map(async (file) => {
-                    try {
-                        const filePath = path.join(dirname, file);
-                        const stats = await statSync(filePath);
-                        if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 3) {
-                            await unlinkSync(filePath);
-                            console.log('Successfully cleared tmp:', filePath);
-                            return filePath;
-                        }
-                    } catch (err) {
-                        console.error(`Error processing ${file}: ${err.message}`);
-
-                    }
-                }));
-            } catch (err) {
-                console.error(`Error reading directory ${dirname}: ${err.message}`);
-                return [];
-            }
-        }));
-        return filenames.flat().filter((file) => file !== null);
-    } catch (err) {
-        console.error(`Error in clearTmp: ${err.message}`);
-        return [];
-    }
-}
-
-async function clearSessions(folder = './TaylorSession') {
-    try {
-        const filenames = await readdirSync(folder);
-        const deletedFiles = await Promise.all(filenames.map(async (file) => {
-            try {
-                const filePath = path.join(folder, file);
-                const stats = await statSync(filePath);
-                if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 120 && file !== 'creds.json') {
-                    await unlinkSync(filePath);
-                    console.log('Deleted session:', filePath);
-                    return filePath;
-                }
-
-            } catch (err) {
-                console.error(`Error processing ${file}: ${err.message}`);
-
-            }
-        }));
-        return deletedFiles.filter((file) => file !== null);
-    } catch (err) {
-        console.error(`Error in clearSessions: ${err.message}`);
-        return [];
-    }
-}
-
-async function purgeSession() {
-    try {
-        const prekeyFolder = './TaylorSession';
-        const prekeyFiles = await readdirSync(prekeyFolder);
-        await Promise.all(prekeyFiles.map(async (file) => {
-            try {
-                if (file !== 'creds.json') {
-                    await unlinkSync(path.join(prekeyFolder, file));
-                }
-            } catch (err) {
-                console.error(`Error unlinking ${file}: ${err.message}`);
-            }
-        }));
-    } catch (err) {
-        console.error(`Error in purgeSession: ${err.message}`);
-    }
-}
-
-async function purgeSessionSB() {
-    try {
-        const directories = ['./TaylorSession/', './jadibot/'];
-        await Promise.all(directories.map(async (folderPath) => {
-            try {
-                if (!existsSync(folderPath)) {
-                    await mkdirSync(folderPath);
-                    console.log(`\nFolder ${folderPath} successfully created.`);
-                }
-                const listaDirectorios = await readdirSync(folderPath);
-                await Promise.all(listaDirectorios.map(async (filesInDir) => {
-                    const dirPath = path.join(folderPath, filesInDir);
-
-                    try {
-                        const isDirectory = (await statSync(dirPath)).isDirectory();
-                        if (isDirectory) {
-                            const SBprekeyFiles = await readdirSync(dirPath);
-                            await Promise.all(SBprekeyFiles.map(async (fileInDir) => {
-                                try {
-                                    if (fileInDir !== 'creds.json') {
-                                        await unlinkSync(path.join(dirPath, fileInDir));
-                                    }
-                                } catch (err) {
-                                    console.error(`Error unlinking ${fileInDir}: ${err.message}`);
-                                }
-                            }));
-                        }
-                    } catch (err) {
-                        console.error(`Error checking directory ${dirPath}: ${err.message}`);
-                    }
-                }));
-            } catch (err) {
-                console.error(`Error in purgeSessionSB: ${err.message}`);
-            }
-        }));
-    } catch (err) {
-        console.error(`Error in purgeSessionSB: ${err.message}`);
-    }
-}
-
-async function purgeOldFiles() {
-    try {
-        const directories = ['./TaylorSession/', './jadibot/'];
-        const oneHourAgo = Date.now() - (60 * 60 * 1000);
-        await Promise.all(directories.map(async (dir) => {
-            const files = await readdirSync(dir);
-            await Promise.all(files.map(async (file) => {
-                try {
-                    const filePath = path.join(dir, file);
-                    const stats = await statSync(filePath);
-                    if (stats.isFile() && stats.mtimeMs < oneHourAgo && file !== 'creds.json') {
-                        await unlinkSync(filePath);
-                        console.log(`\nFile ${file} successfully deleted`);
-                    } else {
-                        console.warn(`\nFile ${file} not deleted`);
-                    }
-                } catch (err) {
-                    console.error(`Error processing ${file}: ${err.message}`);
-                }
-            }));
-        }));
-    } catch (err) {
-        console.error(`Error in purgeOldFiles: ${err.message}`);
-    }
-}
-
 global.connectionAttempts = 0
 async function connectionUpdate(update) {
     const {
@@ -560,7 +430,7 @@ async function connectionUpdate(update) {
     } = update;
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
-    if (code && code !== Baileys.DisconnectReason.loggedOut && conn?.ws.socket == null) {
+    if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
         conn.logger.info(await global.reloadHandler(true).catch(console.error));
     }
     if (global.db.data == null) loadDatabase();
@@ -947,7 +817,7 @@ let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambung
 do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await Baileys.delay(1000);
+    await delay(1000);
 } while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
@@ -1024,6 +894,147 @@ async function _quickTest() {
     }
 }
 
+async function clearTmp() {
+    try {
+        const tmp = [tmpdir(), path.join(__dirname, './tmp')];
+        const filenames = await Promise.all(tmp.map(async (dirname) => {
+            try {
+                const files = await readdirSync(dirname);
+                return Promise.all(files.map(async (file) => {
+                    try {
+                        const filePath = path.join(dirname, file);
+                        const stats = await statSync(filePath);
+                        if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 3) {
+                            await unlinkSync(filePath);
+                            console.log('Successfully cleared tmp:', filePath);
+                            return filePath;
+                        }
+                    } catch (err) {
+                        console.error(`Error processing ${file}: ${err.message}`);
+
+                    }
+                }));
+            } catch (err) {
+                console.error(`Error reading directory ${dirname}: ${err.message}`);
+                return [];
+            }
+        }));
+        return filenames.flat().filter((file) => file !== null);
+    } catch (err) {
+        console.error(`Error in clearTmp: ${err.message}`);
+        return [];
+    }
+}
+
+async function clearSessions(folder = './TaylorSession') {
+    try {
+        const filenames = await readdirSync(folder);
+        const deletedFiles = await Promise.all(filenames.map(async (file) => {
+            try {
+                const filePath = path.join(folder, file);
+                const stats = await statSync(filePath);
+                if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 120 && file !== 'creds.json') {
+                    await unlinkSync(filePath);
+                    console.log('Deleted session:', filePath);
+                    return filePath;
+                }
+
+            } catch (err) {
+                console.error(`Error processing ${file}: ${err.message}`);
+
+            }
+        }));
+        return deletedFiles.filter((file) => file !== null);
+    } catch (err) {
+        console.error(`Error in clearSessions: ${err.message}`);
+        return [];
+    }
+}
+
+async function purgeSession() {
+    try {
+        const prekeyFolder = './TaylorSession';
+        const prekeyFiles = await readdirSync(prekeyFolder);
+        await Promise.all(prekeyFiles.map(async (file) => {
+            try {
+                if (file !== 'creds.json') {
+                    await unlinkSync(path.join(prekeyFolder, file));
+                }
+            } catch (err) {
+                console.error(`Error unlinking ${file}: ${err.message}`);
+            }
+        }));
+    } catch (err) {
+        console.error(`Error in purgeSession: ${err.message}`);
+    }
+}
+
+async function purgeSessionSB() {
+    try {
+        const directories = ['./TaylorSession/', './jadibot/'];
+        await Promise.all(directories.map(async (folderPath) => {
+            try {
+                if (!existsSync(folderPath)) {
+                    await mkdirSync(folderPath);
+                    console.log(`\nFolder ${folderPath} successfully created.`);
+                }
+                const listaDirectorios = await readdirSync(folderPath);
+                await Promise.all(listaDirectorios.map(async (filesInDir) => {
+                    const dirPath = path.join(folderPath, filesInDir);
+
+                    try {
+                        const isDirectory = (await statSync(dirPath)).isDirectory();
+                        if (isDirectory) {
+                            const SBprekeyFiles = await readdirSync(dirPath);
+                            await Promise.all(SBprekeyFiles.map(async (fileInDir) => {
+                                try {
+                                    if (fileInDir !== 'creds.json') {
+                                        await unlinkSync(path.join(dirPath, fileInDir));
+                                    }
+                                } catch (err) {
+                                    console.error(`Error unlinking ${fileInDir}: ${err.message}`);
+                                }
+                            }));
+                        }
+                    } catch (err) {
+                        console.error(`Error checking directory ${dirPath}: ${err.message}`);
+                    }
+                }));
+            } catch (err) {
+                console.error(`Error in purgeSessionSB: ${err.message}`);
+            }
+        }));
+    } catch (err) {
+        console.error(`Error in purgeSessionSB: ${err.message}`);
+    }
+}
+
+async function purgeOldFiles() {
+    try {
+        const directories = ['./TaylorSession/', './jadibot/'];
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        await Promise.all(directories.map(async (dir) => {
+            const files = await readdirSync(dir);
+            await Promise.all(files.map(async (file) => {
+                try {
+                    const filePath = path.join(dir, file);
+                    const stats = await statSync(filePath);
+                    if (stats.isFile() && stats.mtimeMs < oneHourAgo && file !== 'creds.json') {
+                        await unlinkSync(filePath);
+                        console.log(`\nFile ${file} successfully deleted`);
+                    } else {
+                        console.warn(`\nFile ${file} not deleted`);
+                    }
+                } catch (err) {
+                    console.error(`Error processing ${file}: ${err.message}`);
+                }
+            }));
+        }));
+    } catch (err) {
+        console.error(`Error in purgeOldFiles: ${err.message}`);
+    }
+}
+
 const actions = [{
         func: clearTmp,
         message: '\nPenyegaran Tempat Penyimpanan Berhasil ✅'
@@ -1050,13 +1061,10 @@ const actions = [{
 ];
 
 export async function executeActions() {
-    for (const {
-            func,
-            message
-        }
-        of actions) {
+    for (const { func, message } of actions) {
         try {
             await func();
+            await delay(3000);
             console.log(chalk.bold.cyanBright(`\n╭───────────────────────────────────···\n│\n│  ${message}\n│\n╰───────────────────────────────────···\n`));
         } catch (error) {
             console.error(chalk.bold.red(`Error executing action: ${error.message}`));
