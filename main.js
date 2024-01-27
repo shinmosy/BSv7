@@ -84,18 +84,7 @@ import {
     cloudDBAdapter
 } from './lib/cloudDBAdapter.js';
 
-import Baileys, {
-    fetchLatestWaWebVersion,
-    fetchLatestBaileysVersion,
-    useMultiFileAuthState,
-    makeInMemoryStore,
-    makeCacheableSignalKeyStore,
-    jidNormalizedUser,
-    PHONENUMBER_MCC,
-    delay,
-    DisconnectReason
-} from "@whiskeysockets/baileys"
-
+import * as Baileys from "@whiskeysockets/baileys"
 import readline from "readline"
 import {
     parsePhoneNumber
@@ -178,7 +167,7 @@ global.authFile = "TaylorSession";
 const {
     version,
     isLatest
-} = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
+} = await Baileys.fetchLatestWaWebVersion().catch(() => Baileys.fetchLatestBaileysVersion());
 console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
@@ -214,7 +203,7 @@ var [
 ] = await Promise.all([
     Helper.checkFileExists(authFolder + '/creds.json'),
     Helper.checkFileExists(authFile),
-    useMultiFileAuthState(authFolder)
+    Baileys.useMultiFileAuthState(authFolder)
 ])
 /*
 const store = storeSystem.makeInMemoryStore()
@@ -223,7 +212,7 @@ const logger = Pino({
     level: "silent"
 });
 
-const store = makeInMemoryStore({
+const store = Baileys.makeInMemoryStore({
     logger
 })
 
@@ -233,7 +222,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await useMultiFileAuthState(authFolder);
+        authState = await Baileys.useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -275,13 +264,13 @@ const connectionOptions = {
     logger,
     auth: {
         creds: authState.state.creds,
-        keys: makeCacheableSignalKeyStore(authState.state.keys, logger),
+        keys: Baileys.makeCacheableSignalKeyStore(authState.state.keys, logger),
     },
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
         if (store) {
-            let jid = jidNormalizedUser(key.remoteJid)
+            let jid = Baileys.jidNormalizedUser(key.remoteJid)
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
@@ -310,7 +299,7 @@ if (pairingCode && !conn.authState.creds.registered) {
     let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
     console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
     phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-    if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+    if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
         console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
         console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
         console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -321,7 +310,7 @@ if (pairingCode && !conn.authState.creds.registered) {
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
     }
-    await delay(3000)
+    await Baileys.delay(3000)
     let code = await conn.requestPairingCode(phoneNumber)
     code = code?.match(/.{1,4}/g)?.join("-") || code
     global.codePairing = code
@@ -347,7 +336,7 @@ if (useMobile && !conn.authState.creds.registered) {
         let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-        if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+        if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
             console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
             console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
             console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -366,7 +355,7 @@ if (useMobile && !conn.authState.creds.registered) {
     registration.phoneNumber = phoneNumber.format("E.164")
     registration.phoneNumberCountryCode = phoneNumber.countryCallingCode
     registration.phoneNumberNationalNumber = phoneNumber.nationalNumber
-    const mcc = PHONENUMBER_MCC[phoneNumber.countryCallingCode]
+    const mcc = Baileys.PHONENUMBER_MCC[phoneNumber.countryCallingCode]
     registration.phoneNumberMobileCountryCode = mcc
     async function enterCode() {
         try {
@@ -433,7 +422,7 @@ async function connectionUpdate(update) {
     } = update;
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
-    if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
+    if (code && code !== Baileys.DisconnectReason.loggedOut && conn?.ws.socket == null) {
         conn.logger.info(await global.reloadHandler(true).catch(console.error));
     }
     if (global.db.data == null) loadDatabase();
@@ -641,26 +630,37 @@ async function filesInit() {
         ignore: ['**/node_modules/**']
     });
 
-    const successMessages = [];
-    const errorMessages = [];
-
-    for (const file of CommandsFiles) {
+    const importPromises = CommandsFiles.map(async (file) => {
         const moduleName = path.join('/plugins', path.relative(pluginFolder, file));
 
         try {
-            const module = await (await import(file));
-            global.plugins[moduleName] = module.default ? module.default : module;
-            successMessages.push(moduleName);
+            const module = await import(file);
+            global.plugins[moduleName] = module.default || module;
+            return moduleName;
         } catch (e) {
             conn.logger.error(e);
             delete global.plugins[moduleName];
-            errorMessages.push({
+            return {
                 moduleName,
                 filePath: file,
                 message: e.message
-            });
+            };
         }
-    }
+    });
+
+    const results = await Promise.all(importPromises);
+
+    const successMessages = results
+        .filter(result => typeof result === 'string')
+        .sort((a, b) => a.localeCompare(b));
+
+    const errorMessages = results
+        .filter(result => typeof result === 'object')
+        .sort((a, b) => a.moduleName.localeCompare(b.moduleName));
+
+    global.plugins = Object.fromEntries(
+        Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
+    );
 
     conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
     conn.logger.info(`✅ Success Plugins:\n${successMessages.length} total.`);
@@ -746,19 +746,11 @@ async function FileEv(type, file) {
 
 async function watchFiles() {
     const watcher = chokidar.watch(['lib/**/*.js', 'plugins/**/*.js'], {
-        usePolling: true,
-        interval: 100,
-        awaitWriteFinish: {
-            stabilityThreshold: 2000,
-            pollInterval: 100
-        },
-        binaryInterval: 300,
-        followSymlinks: false,
-        depth: 99,
-        ignored: /(^|[\/\\])\../,
-        persistent: true,
-        ignoreInitial: true,
-        alwaysState: true,
+        ignored: /(^|[/\\])\../,
+    ignoreInitial: true,
+    persistent: true,
+    usePolling: true,
+    cwd: __dirname
     });
 
     watcher
@@ -820,7 +812,7 @@ let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambung
 do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await delay(1000);
+    await Baileys.delay(1000);
 } while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
@@ -843,7 +835,7 @@ const mainSpinner = ora({
 
 const executeStep = async (step, index) => {
   mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
-  await delay(index * delayBetweenSteps);
+  await Baileys.delay(index * delayBetweenSteps);
 
   return step().then(result => {
     mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
@@ -1082,13 +1074,12 @@ const actions = [
 ];
 
 async function executeActions() {
-  let count = 1;
   do {
     for (const { func, message, color } of actions) {
       try {
         await func();
-        await delay(3000);
-        console.log(chalk.bold.yellow(`\n[${count++}]`) + ' ' + chalk.bold[color](message));
+        await Baileys.delay(3000);
+        console.log(chalk.bold[color](message));
       } catch (error) {
         console.error(chalk.bold.red(`Error executing action: ${error.message}`));
         throw error;
