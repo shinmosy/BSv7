@@ -15,7 +15,7 @@ let handler = async (m, {
             let mime = q.mtype || ""
             if (!mime)
                 throw `Fotonya Mana...?`;
-            if (!/imageMessage/g.test(mime))
+            if (!/videoMessage/g.test(mime))
                 throw `Mime ${mime} tidak support`;
             else conn.hdvid[m.sender] = true;
             m.reply(wait);
