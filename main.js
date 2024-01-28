@@ -823,31 +823,30 @@ const steps = [
   loadConfig,
   _quickTest,
   filesInit,
-  watchFiles
+  watchFiles,
+  reloadHandlerStep,
+  watchPluginStep
 ];
 
 const delayBetweenSteps = 3000;
-
-const mainSpinner = ora({
-  text: chalk.bold.yellow('Proses sedang berlangsung...'),
-  spinner: 'moon'
-}).start();
+const mainSpinner = ora({ text: chalk.bold.yellow('Proses sedang berlangsung...'), spinner: 'moon' }).start();
 
 const executeStep = async (step, index) => {
   mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
   await Baileys.delay(index * delayBetweenSteps);
 
-  return step().then(result => {
+  try {
+    const result = await step();
     mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
     return result;
-  }).catch(error => {
+  } catch (error) {
     mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
     console.error(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
     return `Error in step ${index + 1}: ${error}`;
-  });
+  }
 };
 
-Promise.all(steps.map((step, index) => executeStep(step, index)))
+Promise.all(steps.map(executeStep))
   .then(results => {
     results.forEach(result => {
       if (typeof result === 'string') {
@@ -863,23 +862,24 @@ Promise.all(steps.map((step, index) => executeStep(step, index)))
     mainSpinner.stop();
   });
 
-
-Object.freeze(global.reload);
-watch(pluginFolder, global.reload);
-
-let reloadHandlerSpinner;
-try {
-    reloadHandlerSpinner = createSpinner(chalk.bold.cyan('Reload Handler...\n'), 'moon').start();
-    if (conn) await global.reloadHandler();
-    reloadHandlerSpinner.render();
-    reloadHandlerSpinner.succeed(chalk.bold.green('Sukses Reload Handler.\n'));
-    reloadHandlerSpinner.stop();
-} catch (error) {
-    console.clear();
-    console.error(chalk.bold.red(`Error saat mengeksekusi aksi: ${error.message}`));
-    if (reloadHandlerSpinner) reloadHandlerSpinner.fail(chalk.bold.red('Gagal Reload Handler.'));
-    process.exit(1);
+async function reloadHandlerStep() {
+  try {
+    await global.reloadHandler();
+    console.log(chalk.bold.green('reloadHandlerStep selesai.'));
+  } catch (error) {
+    throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
+  }
 }
+
+async function watchPluginStep() {
+  try {
+    await watch(pluginFolder, global.reload);
+    console.log(chalk.bold.green('watchPluginStep selesai.'));
+  } catch (error) {
+    throw new Error(chalk.bold.red(`Error in watch plugin step: ${error}`));
+  }
+}
+
 async function _quickTest() {
     const binaries = [
         'ffmpeg',
