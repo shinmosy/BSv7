@@ -1,52 +1,61 @@
-import fetch from 'node-fetch';
+import figlet from 'figlet';
 
-let handler = async (m, {
-    command,
-    usedPrefix,
-    conn,
-    text,
-    args
-}) => {
-    const input_data = await FONT();
+let handler = async (m, { text }) => {
+    let [urutan, tema] = text.split("|");
 
-    let [urutan, tema] = text.split("|")
-    if (!tema) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]")
+    if (!tema) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]");
 
-    await m.reply(wait)
+    await m.reply("Processing, please wait...");
+
     try {
-        let data = Object.keys(input_data).map(title => ({
-            title: input_data[title]
-        }));
-        if (!urutan) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]\n\n*Pilih angka yg ada*\n" + data.map((item, index) => `*${index + 1}.* ${item.title}`).join("\n"))
-        if (isNaN(urutan)) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]\n\n*Pilih angka yg ada*\n" + data.map((item, index) => `*${index + 1}.* ${item.title}`).join("\n"))
-        if (urutan > data.length) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]\n\n*Pilih angka yg ada*\n" + data.map((item, index) => `*${index + 1}.* ${item.title}`).join("\n"))
-        let out = data[urutan - 1].title
+        const fonts = await getAvailableFonts();
+        let data = fonts.map((font, index) => `*${index + 1}.* ${font}`).join("\n");
 
-        const openAIResponse = await ASCII(out, tema);
+        if (!urutan) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]\n\n*Choose from the available fonts*\n" + data);
+        if (isNaN(urutan)) return m.reply("Input query!\n*Example:*\n.ascii [nomor]|[query]\n\n*Choose from the available fonts*\n" + data);
+        if (urutan < 1 || urutan > fonts.length) return m.reply("Invalid selection!\n\n*Choose from the available fonts*\n" + data);
 
-        if (openAIResponse) {
-            await conn.reply(m.chat, openAIResponse, m, adReplyS);
+        let selectedFont = fonts[urutan - 1];
+        let asciiArt = await generateASCIIArt(selectedFont, tema);
+
+        if (asciiArt) {
+            await m.reply(asciiArt);
         } else {
-            console.log("Tidak ada respons dari OpenAI atau terjadi kesalahan.");
+            console.log("Error generating ASCII art.");
         }
     } catch (e) {
-        await m.reply(eror)
+        console.error(e);
+        await m.reply("An error occurred while processing your request.");
     }
-}
-handler.help = ["ascii *[nomor]|[query]*"]
-handler.tags = ["ai"]
-handler.command = /^(ascii)$/i
-export default handler
+};
 
-async function ASCII(font, message) {
-    const response = await fetch(`https://api.338.rocks/ascii/?message=${message}&font=${font}`);
-    const result = await response.json();
-    const completion = result.data;
-    return completion;
+handler.help = ["ascii *[nomor]|[query]*"];
+handler.tags = ["ai"];
+handler.command = /^(ascii)$/i;
+export default handler;
+
+async function generateASCIIArt(font, message) {
+    return new Promise((resolve, reject) => {
+        figlet.text(message, { font }, (err, data) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
 }
-async function FONT() {
-    const response = await fetch(`https://api.338.rocks/ascii/?message=message&font=`);
-    const result = await response.json();
-    const completion = result.availableFonts;
-    return completion;
+
+async function getAvailableFonts() {
+    return new Promise((resolve, reject) => {
+        figlet.fonts((err, fonts) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                resolve(fonts);
+            }
+        });
+    });
 }

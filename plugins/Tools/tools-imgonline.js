@@ -8,8 +8,6 @@ let handler = async (m, { command, usedPrefix, conn, args, text }) => {
 
     if (!mime || !/image\/(png|jpe?g)/.test(mime)) throw 'No valid image found';
 
-    let media = await q.download();
-
     if (!text) {
         return m.reply(`ℹ️ *Daftar Fungsi Imgonline Link:*
 - 1. autoColorContrast
@@ -47,7 +45,7 @@ Contoh Penggunaan: .imgonline 1|order1|order2 atau .imgonline 1`);
         m.reply("*ᴜᴘʟᴏᴀᴅɪɴɢ...*");
 
         let output;
-
+        let media = await q.download();
         if (numericOrder === 1) output = await convert.autoColorContrast(media);
         else if (numericOrder === 2) output = await convert.autoColorImage(media);
         else if (numericOrder === 3) output = await convert.compressImage(media);
@@ -66,10 +64,11 @@ Contoh Penggunaan: .imgonline 1|order1|order2 atau .imgonline 1`);
         else if (numericOrder === 16) output = await convert.textOnImage(media, order1 || null);
         else if (numericOrder === 17) output = await convert.tiltImage(media);
         else if (numericOrder === 18) output = await convert.whirlpoolEffect(media);
-        output = output && output.url && output.url.length > 0 ? output.url[0] : output.text || null;
-        const reslink = output ? `🚀 *ʟɪɴᴋ/ᴛᴇxᴛ:* ${output}` : "Tidak ada output yang valid.";
-
-        m.reply(reslink);
+        output && output.url && output.url.length > 0
+  ? await conn.sendFile(m.chat, output.url[0], '', '', m)
+  : output && output.text
+  ? await conn.reply(m.chat, output.text, m)
+  : null;
     } catch (error) {
         m.reply(`Terjadi kesalahan: ${error.message}`);
     }
