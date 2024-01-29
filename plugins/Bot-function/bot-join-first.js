@@ -1,34 +1,26 @@
 import emojiRegex from 'emoji-regex';
 
 export async function before(m) {
-    if (m.isBaileys || !m.sender || !m.text || !this.chats) return;
+    const { isBaileys, sender, isCommand, text } = m;
+    if (!(isBaileys && !sender && !isCommand && !text && !this.chats)) return;
+
     const symbolRegex = /^[^\w\s\d]/u;
     const emojiAndSymbolRegex = new RegExp(`(${symbolRegex.source}|${emojiRegex().source})`, 'u');
     const prefixRegex = new RegExp(`^${emojiAndSymbolRegex.source}`, 'u');
     if (!prefixRegex.test(m.text)) return;
+
     const groupCode = global.sgc.split('/').pop();
-    let groupId;
+    let groupId = "120363047752200594@g.us";
 
-    try {
-        groupId = (await this.groupGetInviteInfo(groupCode)).id;
-    } catch (error) {
-        groupId = "120363047752200594@g.us";
-    }
+    groupId = (await this.groupGetInviteInfo(groupCode))?.id || groupId;
+    
+    const data = (await this.groupMetadata(groupId)) || (this.chats[groupId]?.metadata);
 
-    let data;
-    try {
-        data = (await this.groupMetadata(groupId));
-    } catch (error) {
-        try {
-            data = (await this.chats[groupId].metadata);
-        } catch (error) {
-            data = null;
-        }
-    }
+    if (!data) return this.reply(m.chat, "❌ *Terjadi kesalahan saat mengambil informasi grup.*\nTambahkan bot ke dalam grup terlebih dahulu:\n - " + global.sgc, m);
 
-    if (!data) return this.reply(m.chat, "❌ *Terjadi kesalahan saat mengambil informasi grup.*\n*Tambahkan saya ke dalam grup terlebih dahulu:*\n - " + global.sgc, m);
-    const isIdExist = data.participants.some(participant => participant.id === m.sender);
+    const isIdExist = data?.participants.some(participant => participant.id === m.sender);
     global.db.data.chats[m.chat].isBanned = !isIdExist;
+
     if (!isIdExist) {
         const urls = "https://chat.whatsapp.com/";
         const inviteCode = await this.groupInviteCode(groupId);
@@ -36,4 +28,5 @@ export async function before(m) {
         await this.reply(m.chat, caption, m);
     }
 }
+
 export const disabled = false;
