@@ -84,7 +84,17 @@ import {
     cloudDBAdapter
 } from './lib/cloudDBAdapter.js';
 
-import * as Baileys from "@whiskeysockets/baileys"
+const {
+    fetchLatestWaWebVersion,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    jidNormalizedUser,
+    proto,
+    PHONENUMBER_MCC,
+    delay,
+    DisconnectReason
+} = await (await import("@whiskeysockets/baileys")).default;
+
 import readline from "readline"
 import {
     parsePhoneNumber
@@ -167,7 +177,7 @@ global.authFile = "TaylorSession";
 const {
     version,
     isLatest
-} = await Baileys.fetchLatestWaWebVersion().catch(() => Baileys.fetchLatestBaileysVersion());
+} = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
 console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
@@ -203,18 +213,18 @@ var [
 ] = await Promise.all([
     Helper.checkFileExists(authFolder + '/creds.json'),
     Helper.checkFileExists(authFile),
-    Baileys.useMultiFileAuthState(authFolder)
+    storeSystem.useMultiFileAuthState(authFolder)
 ])
-/*
-const store = storeSystem.makeInMemoryStore()
-*/
+
+const store = storeSystem.makeInMemoryStore();
 const logger = Pino({
     level: "silent"
 });
-
-const store = Baileys.makeInMemoryStore({
+/*
+const store = makeInMemoryStore({
     logger
 })
+*/
 
 // Convert single auth to multi auth
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
@@ -222,7 +232,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await Baileys.useMultiFileAuthState(authFolder);
+        authState = await storeSystem.useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -264,17 +274,17 @@ const connectionOptions = {
     logger,
     auth: {
         creds: authState.state.creds,
-        keys: Baileys.makeCacheableSignalKeyStore(authState.state.keys, logger),
+        keys: makeCacheableSignalKeyStore(authState.state.keys, logger),
     },
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
         if (store) {
-            let jid = Baileys.jidNormalizedUser(key.remoteJid)
+            let jid = jidNormalizedUser(key.remoteJid)
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
-        return Baileys.proto.Message.fromObject({});
+        return proto.Message.fromObject({});
     },
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
@@ -299,7 +309,7 @@ if (pairingCode && !conn.authState.creds.registered) {
     let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
     console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
     phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-    if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+    if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
         console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
         console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
         console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -310,7 +320,7 @@ if (pairingCode && !conn.authState.creds.registered) {
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
     }
-    await Baileys.delay(3000)
+    await delay(3000)
     let code = await conn.requestPairingCode(phoneNumber)
     code = code?.match(/.{1,4}/g)?.join("-") || code
     global.codePairing = code
@@ -336,7 +346,7 @@ if (useMobile && !conn.authState.creds.registered) {
         let phoneNumber = await question(`   ${chalk.bold.cyan('- Number')}: `);
         console.log(chalk.bold.cyan('╰──────────────────────────────────────···'));
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
-        if (!Object.keys(Baileys.PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+        if (!Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
             console.log(chalk.bold.cyan('╭─────────────────────────────────────────────────···'));
             console.log(`💬 ${chalk.bold.redBright("Start with your country's WhatsApp code, Example 62xxx")}:`);
             console.log(chalk.bold.cyan('╰─────────────────────────────────────────────────···'));
@@ -355,7 +365,7 @@ if (useMobile && !conn.authState.creds.registered) {
     registration.phoneNumber = phoneNumber.format("E.164")
     registration.phoneNumberCountryCode = phoneNumber.countryCallingCode
     registration.phoneNumberNationalNumber = phoneNumber.nationalNumber
-    const mcc = Baileys.PHONENUMBER_MCC[phoneNumber.countryCallingCode]
+    const mcc = PHONENUMBER_MCC[phoneNumber.countryCallingCode]
     registration.phoneNumberMobileCountryCode = mcc
     async function enterCode() {
         try {
@@ -422,7 +432,7 @@ async function connectionUpdate(update) {
     } = update;
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
-    if (code && code !== Baileys.DisconnectReason.loggedOut && conn?.ws.socket == null) {
+    if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
         conn.logger.info(await global.reloadHandler(true).catch(console.error));
     }
     if (global.db.data == null) loadDatabase();
@@ -747,10 +757,10 @@ async function FileEv(type, file) {
 async function watchFiles() {
     const watcher = chokidar.watch(['lib/**/*.js', 'plugins/**/*.js'], {
         ignored: /(^|[/\\])\../,
-    ignoreInitial: true,
-    persistent: true,
-    usePolling: true,
-    cwd: __dirname
+        ignoreInitial: true,
+        persistent: true,
+        usePolling: true,
+        cwd: __dirname
     });
 
     watcher
@@ -812,72 +822,75 @@ let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambung
 do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await Baileys.delay(1000);
+    await delay(1000);
 } while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
 connectionCheckSpinner.stop();
 
 const steps = [
-  loadDatabase,
-  loadConfig,
-  _quickTest,
-  filesInit,
-  watchFiles,
-  reloadHandlerStep,
-  watchPluginStep
+    loadDatabase,
+    loadConfig,
+    _quickTest,
+    filesInit,
+    watchFiles,
+    reloadHandlerStep,
+    watchPluginStep
 ];
 
 const delayBetweenSteps = 3000;
-const mainSpinner = ora({ text: chalk.bold.yellow('Proses sedang berlangsung...'), spinner: 'moon' }).start();
+const mainSpinner = ora({
+    text: chalk.bold.yellow('Proses sedang berlangsung...'),
+    spinner: 'moon'
+}).start();
 
 const executeStep = async (step, index) => {
-  mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
-  await Baileys.delay(index * delayBetweenSteps);
+    mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
+    await delay(index * delayBetweenSteps);
 
-  try {
-    const result = await step();
-    mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
-    return result;
-  } catch (error) {
-    mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
-    console.error(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
-    return `Error in step ${index + 1}: ${error}`;
-  }
+    try {
+        const result = await step();
+        mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
+        return result;
+    } catch (error) {
+        mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
+        console.error(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
+        return `Error in step ${index + 1}: ${error}`;
+    }
 };
 
 Promise.all(steps.map(executeStep))
-  .then(results => {
-    results.forEach(result => {
-      if (typeof result === 'string') {
-        console.error(chalk.bold.red(result));
-      }
+    .then(results => {
+        results.forEach(result => {
+            if (typeof result === 'string') {
+                console.error(chalk.bold.red(result));
+            }
+        });
+        mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
+    })
+    .catch(error => {
+        mainSpinner.fail(chalk.bold.red(`${error}`));
+    })
+    .finally(() => {
+        mainSpinner.stop();
     });
-    mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
-  })
-  .catch(error => {
-    mainSpinner.fail(chalk.bold.red(`${error}`));
-  })
-  .finally(() => {
-    mainSpinner.stop();
-  });
 
 async function reloadHandlerStep() {
-  try {
-    await global.reloadHandler();
-    console.log(chalk.bold.green('reloadHandlerStep selesai.'));
-  } catch (error) {
-    throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
-  }
+    try {
+        await global.reloadHandler();
+        console.log(chalk.bold.green('reloadHandlerStep selesai.'));
+    } catch (error) {
+        throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
+    }
 }
 
 async function watchPluginStep() {
-  try {
-    await watch(pluginFolder, global.reload);
-    console.log(chalk.bold.green('watchPluginStep selesai.'));
-  } catch (error) {
-    throw new Error(chalk.bold.red(`Error in watch plugin step: ${error}`));
-  }
+    try {
+        await watch(pluginFolder, global.reload);
+        console.log(chalk.bold.green('watchPluginStep selesai.'));
+    } catch (error) {
+        throw new Error(chalk.bold.red(`Error in watch plugin step: ${error}`));
+    }
 }
 
 async function _quickTest() {
@@ -1064,38 +1077,69 @@ async function purgeOldFiles() {
     }
 }
 
-const actions = [
-  { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
-  { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
-  { func: purgeSession, message: 'Sesi-Sesi Tersimpan Sudah Dihapus ✅', color: 'green' },
-  { func: purgeSessionSB, message: 'Sesi-Sesi Sub-Bot Telah Dihapus ✅', color: 'green' },
-  { func: purgeOldFiles, message: 'Berkas Lama Telah Dihapus ✅', color: 'green' },
-  { func: loadConfig, message: 'Sukses Re-load config. ✅', color: 'green' },
+const actions = [{
+        func: clearTmp,
+        message: 'Penyegaran Tempat Penyimpanan Berhasil ✅',
+        color: 'green'
+    },
+    {
+        func: clearSessions,
+        message: 'Clear Sessions Berhasil ✅',
+        color: 'green'
+    },
+    {
+        func: purgeSession,
+        message: 'Sesi-Sesi Tersimpan Sudah Dihapus ✅',
+        color: 'green'
+    },
+    {
+        func: purgeSessionSB,
+        message: 'Sesi-Sesi Sub-Bot Telah Dihapus ✅',
+        color: 'green'
+    },
+    {
+        func: purgeOldFiles,
+        message: 'Berkas Lama Telah Dihapus ✅',
+        color: 'green'
+    },
+    {
+        func: loadConfig,
+        message: 'Sukses Re-load config. ✅',
+        color: 'green'
+    },
 ];
 
 async function executeActions() {
-  do {
-    for (const { func, message, color } of actions) {
-      try {
-        await func();
-        await Baileys.delay(3000);
-        console.log(chalk.bold[color](message));
-      } catch (error) {
-        console.error(chalk.bold.red(`Error executing action: ${error.message}`));
-        throw error;
-      }
-    }
-    await new Promise(resolve => setTimeout(resolve, 3600000));
-  } while (true);
+    do {
+        for (const {
+                func,
+                message,
+                color
+            }
+            of actions) {
+            try {
+                await func();
+                await delay(3000);
+                console.log(chalk.bold[color](message));
+            } catch (error) {
+                console.error(chalk.bold.red(`Error executing action: ${error.message}`));
+                throw error;
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 3600000));
+    } while (true);
 }
 executeActions()
-  .then(() => console.log("Execution completed."))
-  .catch(error => console.error("Error in executeActions:", error))
-  .finally(() => console.log("Finally block executed."));
+    .then(() => console.log("Execution completed."))
+    .catch(error => console.error("Error in executeActions:", error))
+    .finally(() => console.log("Finally block executed."));
 
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
-    const units = ['Hari', 'Jam', 'Menit', 'Detik'].map((label, i) => ({ label, value: Math.floor(i < 2 ? ms / (86400000 / [1, 24][i]) : ms / [60000, 1000][i - 2]) % ([1, 60][i < 2 ? 0 : 1]) }));
+    const units = ['Hari', 'Jam', 'Menit', 'Detik'].map((label, i) => ({
+        label,
+        value: Math.floor(i < 2 ? ms / (86400000 / [1, 24][i]) : ms / [60000, 1000][i - 2]) % ([1, 60][i < 2 ? 0 : 1])
+    }));
     return units.map(unit => `${unit.value.toString().padStart(2, '0')} ${unit.label}`).join(' ');
 }
