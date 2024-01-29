@@ -33,32 +33,8 @@ const generate = (x, y, bombs) => {
 const generateEmpty = (x, y) => Array.from({ length: x }, () => Array(y).fill(0));
 
 const translate = (value) => {
-    switch (value) {
-        case 0:
-            return '⬜';
-        case 1:
-            return '1️⃣';
-        case 2:
-            return '2️⃣';
-        case 3:
-            return '3️⃣';
-        case 4:
-            return '4️⃣';
-        case 5:
-            return '5️⃣';
-        case 6:
-            return '6️⃣';
-        case 7:
-            return '7️⃣';
-        case 8:
-            return '8️⃣';
-        case 'x':
-            return '💣';
-        case 'e':
-            return '⏹️';
-        case 'f':
-            return '🚩';
-    }
+    const emojis = ['⬜', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '💣', '⏹️', '🚩'];
+    return emojis[value];
 };
 
 const generateString = (map) => map.map(row => row.map(cell => translate(cell)).join('')).join('\n');
@@ -93,10 +69,7 @@ const detectZero = (map, x, y) => {
 
 const handler = async (m, { conn, args, usedPrefix }) => {
     conn.minessweeper ??= {};
-    const orgs = args[0];
-    const oX = args[1];
-    const oY = args[2];
-    const F = args[3];
+    const [orgs, oX, oY, F] = args;
     const x = 10;
     const y = 10;
     const bombs = 15;
@@ -111,7 +84,7 @@ const handler = async (m, { conn, args, usedPrefix }) => {
             const map = generate(x, y, bombs);
             const empty = generateEmpty(x, y);
             const { key } = await conn.reply(m.chat, '🕹️ *Minesweeper Game* 🕹️\n\n*Board*\n' + generateString(empty), m);
-            conn.minessweeper[m.chat] = { 'map': map, 'current': empty, 'key': key };
+            conn.minessweeper[m.chat] = { map, current: empty, key };
             return;
 
         case "surrender":
@@ -149,7 +122,7 @@ const handler = async (m, { conn, args, usedPrefix }) => {
                     delete conn.minessweeper[m.chat];
                     global.db.data.users[m.sender].exp -= 9000;
                     const { key: loseKey } = await conn.reply(m.chat, '💥 *BOOM!* 💣 *You opened a bomb.*\n*Exp Points Deducted: 9000* 💔\n*Exp Points:* ' + global.db.data.users[m.sender].exp, m);
-                    conn.minessweeper[m.chat] = { 'key': loseKey };
+                    conn.minessweeper[m.chat] = { key: loseKey };
                     return;
                 } else {
                     g.current[oY - 1][oX - 1] = openedCell;
