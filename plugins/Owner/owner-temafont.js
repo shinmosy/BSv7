@@ -3,30 +3,56 @@ import {
     FontListV2
 } from "../../lib/fancy-text.js";
 
-let handler = async (m, {
+const handler = async (m, {
     conn,
     command,
     text
 }) => {
     conn.temafont = conn.temafont || null;
+
     if (text) {
-        let themeIndex = parseInt(text);
+        const themeIndex = parseInt(text);
+
         if (isNaN(themeIndex)) {
-            let Lfont = await FontList("Example").catch(error => FontListV2().then(() => console.error(error)));
-            await conn.reply(m.chat, 'Input tidak valid. Silakan pilih tema dari daftar berikut:\n' + Lfont.map((v, i) => `*${i + 1}.* ${v.text} - ${v.name}`).join('\n'), m);
+            const fontList = await getFontList();
+            await conn.sendMessage(m.chat, {
+                text: `Input tidak valid. Silakan pilih tema dari daftar berikut:\n${fontList.map((v, i) => `*${i + 1}.* ${v.text} - ${v.name}`).join('\n')}`
+            }, {
+                quoted: m
+            });
             return;
         }
-        conn.temafont = (themeIndex == 0) ? null : themeIndex;
-        conn.reply(m.chat, 'Tema berhasil diatur\n' + themeIndex, m);
+
+        conn.temafont = themeIndex === 0 ? null : themeIndex;
+        await conn.reply(m.chat, `Tema berhasil diatur\n${themeIndex}`, m);
     } else {
-        let Lfont = await FontList("Example").catch(error => FontListV2().then(() => console.error(error)));
-        await conn.reply(m.chat, 'Input tidak valid. Silakan pilih tema dari daftar berikut:\n' + Lfont.map((v, i) => `*${i + 1}.* ${v.text} - ${v.name}`).join('\n'), m);
+        const fontList = await getFontList();
+        await conn.sendMessage(m.chat, {
+            text: `Input tidak valid. Silakan pilih tema dari daftar berikut:\n${fontList.map((v, i) => `*${i + 1}.* ${v.text} - ${v.name}`).join('\n')}`
+        }, {
+            quoted: m
+        });
         return;
     }
 };
-handler.help = ['temafont']
-handler.tags = ['owner']
-handler.command = /^(temafont)$/i
-handler.owner = true
+
+handler.help = ['temafont'];
+handler.tags = ['owner'];
+handler.command = /^(temafont)$/i;
+handler.owner = true;
 
 export default handler;
+
+const getFontList = async () => {
+    try {
+        const LfontV2 = await FontListV2();
+        return LfontV2;
+    } catch (error) {
+        try {
+            const Lfont = await FontList("Example");
+            return Lfont;
+        } catch (error) {
+            console.log("Error");
+        }
+    }
+};
