@@ -4,7 +4,7 @@ let handler = async (m, {
     conn.bomb = conn.bomb || {};
     let id = m.chat,
         timeout = 180000;
-    if (id in conn.bomb) return conn.reply(m.chat, '*^ sesi ini belum selesai!*', conn.bomb[id][0]);
+    if (id in conn.bomb) return conn.reply(m.chat, '*^ sesi ini belum selesai!*', conn.bomb[id].data[m.sender][0]);
     const bom = ['💥', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅'].sort(() => Math.random() - 0.5);
     const number = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
     const array = bom.map((v, i) => ({
@@ -20,17 +20,18 @@ let handler = async (m, {
     let {
         key
     } = msg
-
+    
     let v;
-    conn.bomb[id] = [
+    conn.bomb[id].data[m.sender] = [
         msg,
         array,
         setTimeout(() => {
             v = array.find(v => v.emot == '💥');
-            if (conn.bomb[id]) conn.reply(m.chat, `*Waktu habis!*, Bom berada di kotak nomor ${v.number}.`, conn.bomb[id][0].key);
-            delete conn.bomb[id];
+            if (conn.bomb[id].data[m.sender]) conn.reply(m.chat, `*Waktu habis!*, Bom berada di kotak nomor ${v.number}.`, conn.bomb[id].data[m.sender][0].key);
+            delete conn.bomb[id].data[m.sender];
         }, timeout),
-        key
+        key,
+        m.sender
     ];
 
 };
