@@ -25,10 +25,6 @@ import {
  * @type {import("@whiskeysockets/baileys")}
  */
 const isNumber = x => typeof x === "number" && !isNaN(x)
-const delay = ms => isNumber(ms) && new Promise(resolve => setTimeout(function() {
-    clearTimeout(this)
-    resolve()
-}, ms))
 
 /**
  * Handle messages upsert
@@ -37,15 +33,12 @@ const delay = ms => isNumber(ms) && new Promise(resolve => setTimeout(function()
 const {
     getAggregateVotesInPollMessage,
     makeInMemoryStore,
-    WAMessageStubType
+    WAMessageStubType,
+    delay
 } = await (await import('@whiskeysockets/baileys')).default;
-import Pino from "pino"
-const store = makeInMemoryStore({
-    logger: Pino().child({
-        level: 'fatal',
-        stream: 'store'
-    })
-})
+import storeSystem from './lib/store-multi.js';
+const store = storeSystem.makeInMemoryStore();
+
 export async function handler(chatUpdate) {
     this.msgqueque = this.msgqueque || []
     if (!chatUpdate)
