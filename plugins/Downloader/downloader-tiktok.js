@@ -76,25 +76,30 @@ let handler = async (m, {
         if (feature == "v4") {
             if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
             m.reply(wait)
+            const spinner = ora({
+    text: 'Downloading...',
+    spinner: 'moon',
+}).start();
             try {
                 const video = await fetchVideo(inputs);
                 const buffer = await video.download({
-                    progress: (p) => {
-                        const progressText = chalk.blue(`Downloaded ${p.progress}%`) +
-                            ` (${chalk.green(p.downloaded)}/${chalk.green(p.total)} bytes)`;
-                        spinner.text = progressText;
-                        spinner.render();
-                    },
-                });
+        progress: (p) => {
+            const progressText = chalk.blue(`Downloaded ${p.progress}%`) +
+                ` (${chalk.green(p.downloaded)}/${chalk.green(p.total)} bytes)`;
+            spinner.text = progressText;
+        },
+    });
 
-                spinner.succeed(chalk.green('Download completed'));
+    spinner.succeed(chalk.green('Download completed'));
+
                 let PrevCap = `${spas}*[ T I K T O K ]*
 
 ${getVideoInfo(video)}
 \n${spas}*[ ${feature.toUpperCase()} ]*`
                 await conn.sendFile(m.chat, buffer || giflogo, "", PrevCap, m)
             } catch (e) {
-                throw eror
+                spinner.fail(chalk.red('Download failed'));
+    console.error(error);
             }
         }
         if (feature == "v5") {
