@@ -10,17 +10,19 @@ export async function before(m) {
         let isSurrender = /^((me)?nyerah|surr?ender)$/i.test(m.text);
         if (isSurrender && this.bomb && (id in this.bomb)) {
             await this.reply(m.chat, `🚩 Menyerah`, m);
-            clearTimeout(this.bomb[id][2]);
-            delete this.bomb[id];
+            clearTimeout(this.bomb[id].data[m.sender][2]);
+            delete this.bomb[id].data[m.sender];
         }
 
-        if (this.bomb[id] && m.quoted && m.quoted.id == this.bomb[id][3].id && !isNaN(body)) {
-            let json = this.bomb[id][1].find(v => v.position == body);
+        if (this.bomb[id].data[m.sender] && m.quoted && m.quoted.id == this.bomb[id].data[m.sender][3].id && !isNaN(body)) {
+            let json = this.bomb[id].data[m.sender][1].find(v => v.position == body);
+            let player = this.bomb[id].data[m.sender][4] === m.sender;
+            if (!player) return this.reply(m.chat, `🚩 Bukan sesi permainanmu.`, m);
             if (!json) return this.reply(m.chat, `🚩 Untuk membuka kotak kirim angka 1 - 9`, m);
 
             if (json.emot == '💥') {
                 json.state = true;
-                let bomb = this.bomb[id][1];
+                let bomb = this.bomb[id].data[m.sender][1];
                 let teks = `乂  *B O M B*\n\n`;
                 teks += bomb.slice(0, 3).map(v => v.state ? v.emot : v.number).join('') + '\n';
                 teks += bomb.slice(3, 6).map(v => v.state ? v.emot : v.number).join('') + '\n';
@@ -30,14 +32,14 @@ export async function before(m) {
 
                 this.reply(m.chat, teks, m).then(() => {
                     users.exp < reward ? users.exp = 0 : users.exp -= reward;
-                    clearTimeout(this.bomb[id][2]);
-                    delete this.bomb[id];
+                    clearTimeout(this.bomb[id].data[m.sender][2]);
+                    delete this.bomb[id].data[m.sender];
                 });
             } else if (json.state) {
                 return this.reply(m.chat, `🚩 Kotak ${json.number} sudah di buka silahkan pilih kotak yang lain.`, m);
             } else {
                 json.state = true;
-                let changes = this.bomb[id][1];
+                let changes = this.bomb[id].data[m.sender][1];
                 let open = changes.filter(v => v.state && v.emot != '💥').length;
 
                 if (open >= 8) {
@@ -51,8 +53,8 @@ export async function before(m) {
 
                     this.reply(m.chat, teks, m).then(() => {
                         users.exp += reward;
-                        clearTimeout(this.bomb[id][2]);
-                        delete this.bomb[id];
+                        clearTimeout(this.bomb[id].data[m.sender][2]);
+                        delete this.bomb[id].data[m.sender];
                     });
                 } else {
                     let teks = `乂  *B O M B*\n\n`;
@@ -65,7 +67,7 @@ export async function before(m) {
 
                     this.relayMessage(m.chat, {
                         protocolMessage: {
-                            key: this.bomb[id][3],
+                            key: this.bomb[id].data[m.sender][3],
                             type: 14,
                             editedMessage: {
                                 conversation: teks
