@@ -386,7 +386,7 @@ Sedang berperang di dungeon...
 `
             m.reply(str, room.player1, {
                 contextInfo: {
-                    mentionedJid: await this.parseMention(str)
+                    mentionedJid: await conn.parseMention(str)
                 }
             })
 
@@ -458,7 +458,7 @@ Sedang berperang di dungeon...
                     let str3 = `${__sword1 ? `⚔️Sword Kamu ${_sword1 ? ` Level nya berkurang 1 karena hancur` : ` Hancur, dan silahkan crafting ⚔️Sword kembali dengan mengetik ${usedPrefix}`}craft sword` : ''} ${healt1 ? `${__sword1 ? 'Dan ' : ''}❤️Nyawa Kamu habis, silahkan isi kembali dengan ketik ${usedPrefix}heal` : ''}`
                     m.reply(str3, room.player1, {
                         contextInfo: {
-                            mentionedJid: await this.parseMention(str3)
+                            mentionedJid: await conn.parseMention(str3)
                         }
                     })
                 }
@@ -476,22 +476,22 @@ Sedang berperang di dungeon...
 `
             m.reply(str, c1, {
                 contextInfo: {
-                    mentionedJid: await this.parseMention(str)
+                    mentionedJid: await conn.parseMention(str)
                 }
             })
             if (c2 && ![c1, c3, c4].includes(c2)) m.reply(str, c2, {
                 contextInfo: {
-                    mentionedJid: await this.parseMention(str)
+                    mentionedJid: await conn.parseMention(str)
                 }
             })
             if (c3 && ![c1, c2, c4].includes(c3)) m.reply(str, c3, {
                 contextInfo: {
-                    mentionedJid: await this.parseMention(str)
+                    mentionedJid: await conn.parseMention(str)
                 }
             })
             if (c4 && ![c1, c2, c3].includes(c4)) m.reply(str, c4, {
                 contextInfo: {
-                    mentionedJid: await this.parseMention(str)
+                    mentionedJid: await conn.parseMention(str)
                 }
             })
 
@@ -538,22 +538,22 @@ Sedang berperang di dungeon...
 `
                 await m.reply(str2, c1, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str2)
+                        mentionedJid: await conn.parseMention(str2)
                     }
                 })
                 if (c2 && ![c1, c3, c4].includes(c2)) m.reply(str2, c2, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str2)
+                        mentionedJid: await conn.parseMention(str2)
                     }
                 })
                 if (c3 && ![c1, c2, c4].includes(c3)) m.reply(str2, c3, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str2)
+                        mentionedJid: await conn.parseMention(str2)
                     }
                 })
                 if (c4 && ![c1, c2, c3].includes(c4)) m.reply(str2, c4, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str2)
+                        mentionedJid: await conn.parseMention(str2)
                     }
                 })
             }, pickRandom([1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000]))
@@ -592,22 +592,22 @@ Sedang berperang di dungeon...
                 let str3 = 'Selamat ' + P + ' kalian mendapatkan item Rare Total *' + mythic * orang + '* 📦Mythic Crate'
                 m.reply(str3, c1, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c2 && ![c1, c3, c4].includes(c2)) m.reply(str3, c2, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c3 && ![c1, c2, c4].includes(c3)) m.reply(str3, c3, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c4 && ![c1, c2, c3].includes(c4)) m.reply(str3, c4, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
             }
@@ -617,22 +617,22 @@ Sedang berperang di dungeon...
                 let str3 = (mythic > 0 ? 'Dan juga' : 'Selamat ' + P + ' kalian') + ' mendapatkan item Epic Total ' + (pet > 0 && legendary > 0 ? `*${legendary * orang}* 🎁Legendary Crate dan *${pet * orang}* 📦Pet Crate` : pet > 0 && legendary < 1 ? `*${pet * orang}* 📦Pet Crate` : legendary > 0 && pet < 1 ? `*${legendary * orang}* 🎁Legendary Crate` : '')
                 m.reply(str3, c1, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c2 && ![c1, c3, c4].includes(c2)) m.reply(str3, c2, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c3 && ![c1, c2, c4].includes(c3)) m.reply(str3, c3, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c4 && ![c1, c2, c3].includes(c4)) m.reply(str3, c4, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
             }
@@ -680,22 +680,22 @@ Sedang berperang di dungeon...
                 let str3 = `${((SDH || SDH.length > 0) || (SDM1L || SDM1L.length > 0)) ? `⚔️Sword ${((SDH || SDH.length > 0 ? sI + ' Hancur, silahkan crafting ⚔️Sword kembali dengan mengetik *' + usedPrefix + 'craft sword*' : '') + (SDM1L || SDM1L.length > 0 ? (SDH || SDH.length > 0 ? ', Sedangkan ⚔️Sword ' : '') + sH + ' Hancur, dan Menurun *1* Level' : ''))}` : ''}${HEALT || HEALT.length > 0 ? `❤️Nyawa ${H} habis, silahkan isi ❤️Nyawa dengan mengetik ${usedPrefix}heal` : ''}`
                 m.reply(str3, c1, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c2 && ![c1, c3, c4].includes(c2)) m.reply(str3, c2, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c3 && ![c1, c2, c4].includes(c3)) m.reply(str3, c3, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
                 if (c4 && ![c1, c2, c3].includes(c4)) m.reply(str3, c4, {
                     contextInfo: {
-                        mentionedJid: await this.parseMention(str3)
+                        mentionedJid: await conn.parseMention(str3)
                     }
                 })
             }

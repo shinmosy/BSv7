@@ -285,7 +285,7 @@ handler.before = async (m, {
     conn.iqtest = conn.iqtest ? conn.iqtest : {};
     const iqtest = conn.iqtest[m.chat];
     if (!iqtest || iqtest.state !== 'playing') return;
-    if (m.isBaileys) return;
+    if (m.isBaileys || !m.text) return false;
     if (m.sender in conn.iqtest && iqtest.state === 'playing') {
         return m.reply("⏳ Anda sedang berada dalam permainan. Tunggu hingga permainan selesai atau ketik \"stop\" untuk menghentikan permainan.");
     }
