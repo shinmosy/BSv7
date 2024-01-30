@@ -755,13 +755,13 @@ async function FileEv(type, file) {
 }
 
 async function watchFiles() {
-    const watcher = chokidar.watch(['lib/**/*.js', 'plugins/**/*.js'], {
-        ignored: /(^|[/\\])\../,
-        ignoreInitial: true,
-        persistent: true,
-        usePolling: true,
-        cwd: __dirname
-    });
+    const watcher = chokidar.watch(['./**/*.js', '!./node_modules/**/*.js'], {
+    ignored: /(^|[/\\])\../,
+    ignoreInitial: true,
+    persistent: true,
+    usePolling: true,
+    cwd: __dirname
+});
 
     watcher
         .on('add', async (path) => {

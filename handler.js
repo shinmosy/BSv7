@@ -1173,55 +1173,20 @@ export async function handler(chatUpdate) {
                         continue
                     }
                 }
-                if (plugin.rowner && plugin.owner && !(isROwner || isOwner)) { // Both Owner
-                    fail("owner", m, this)
-                    continue
-                }
-                if (plugin.rowner && !isROwner) { // Real Owner
-                    fail("rowner", m, this)
-                    continue
-                }
-                if (plugin.owner && !isOwner) { // Number Owner
-                    fail("owner", m, this)
-                    continue
-                }
-                if (plugin.mods && !isMods) { // Moderator
-                    fail("mods", m, this)
-                    continue
-                }
-                if (plugin.premium && !isPrems) { // Premium
-                    fail("premium", m, this)
-                    continue
-                }
-                if (plugin.group && !m.isGroup) { // Group Only
-                    fail("group", m, this)
-                    continue
-                } else if (plugin.botAdmin && !isBotAdmin) { // You Admin
-                    fail("botAdmin", m, this)
-                    continue
-                } else if (plugin.admin && !isAdmin) { // User Admin
-                    fail("admin", m, this)
-                    continue
-                }
-                if (plugin.private && m.isGroup) { // Private Chat Only
-                    fail("private", m, this)
-                    continue
-                }
-                if (plugin.register == true && _user.registered == false) { // Butuh daftar?
-                    fail("unreg", m, this)
-                    continue
-                }
-                if (plugin.nsfw && global.db.data.chats[m.chat].nsfw) { // Nsfw
-                    fail("nsfw", m, this)
-                    continue
-                }
-                if (opts['antirpg'] && global.db.data.settings[this.user.jid].antirpg) {
-                    if (plugin.tags && plugin.tags.includes("rpg")) {
-                        fail("rpg", m, this)
-                        continue
-                    }
-                }
-
+                if (
+    (plugin.rowner && !(isROwner || isOwner) && (fail("owner", m, this), true)) ||
+    (plugin.rowner && !isROwner && (fail("rowner", m, this), true)) ||
+    (plugin.owner && !isOwner && (fail("owner", m, this), true)) ||
+    (plugin.mods && !isMods && (fail("mods", m, this), true)) ||
+    (plugin.premium && !isPrems && (fail("premium", m, this), true)) ||
+    (plugin.group && !m.isGroup && (fail("group", m, this), true)) ||
+    (plugin.botAdmin && !isBotAdmin && (fail("botAdmin", m, this), true)) ||
+    (plugin.admin && !isAdmin && (fail("admin", m, this), true)) ||
+    (plugin.private && m.isGroup && (fail("private", m, this), true)) ||
+    (plugin.register && !_user.registered && (fail("unreg", m, this), true)) ||
+    (plugin.nsfw && global.db.data.chats[m.chat].nsfw && (fail("nsfw", m, this), true)) ||
+    (opts['antirpg'] && global.db.data.settings[this.user.jid].antirpg && plugin.tags && plugin.tags.includes("rpg") && (fail("rpg", m, this), true))
+) return false;
                 m.isCommand = true
                 let xp = "exp" in plugin ? parseInt(plugin.exp) : 17 // XP Earning per command
                 if (xp > 200)
@@ -1619,7 +1584,6 @@ export async function pollUpdate(message) {
 Update presence
 */
 export async function presenceUpdate(presenceUpdate) {
-    //console.log(JSON.stringify(null, presenceUpdate, 4))
     const id = presenceUpdate.id;
     const nouser = Object.keys(presenceUpdate.presences);
     const status = presenceUpdate.presences[nouser]?.lastKnownPresence;
