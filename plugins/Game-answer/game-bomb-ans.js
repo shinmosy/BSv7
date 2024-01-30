@@ -4,25 +4,29 @@ export async function before(m) {
         let timeout = 180000;
         let reward = randomInt(100, 80000);
         let users = global.db.data.users[m.sender];
-        let body = typeof m.text == 'string' ? m.text : false;
+        let body = typeof m.text == 'string' && !isNaN(m.text) ? parseInt(m.text) : false;
         this.bomb = this.bomb ? this.bomb : {};
 
         let isSurrender = /^((me)?nyerah|surr?ender)$/i.test(m.text);
         if (isSurrender && this.bomb && (id in this.bomb)) {
             await this.reply(m.chat, `🚩 Menyerah`, m);
-            clearTimeout(this.bomb[id].data[m.sender][2]);
-            delete this.bomb[id].data[m.sender];
+            clearTimeout(this.bomb[id][2]);
+            delete this.bomb[id];
         }
 
-        if (this.bomb[id].data[m.sender] && m.quoted && m.quoted.id == this.bomb[id].data[m.sender][3].id && !isNaN(body)) {
-            let json = this.bomb[id].data[m.sender][1].find(v => v.position == body);
-            let player = this.bomb[id].data[m.sender][4] === m.sender;
+        if (this.bomb[id] && m.quoted && m.quoted.id == this.bomb[id][3].id && !isNaN(body)) {
+            let json = this.bomb[id][1].find(v => v.position == body);
+            let player = this.bomb[id][1].find(v => v.player == m.sender);
             if (!player) return this.reply(m.chat, `🚩 Bukan sesi permainanmu.`, m);
-            if (!json) return this.reply(m.chat, `🚩 Untuk membuka kotak kirim angka 1 - 9`, m);
+            if (!json) return this.reply(m.chat, `🚩 Untuk membuka kotak kirim angka 1 - 9`, this.bomb[id][0]);
+            
+        if (body === false || body < 1 || body > 9) {
+            return this.reply(m.chat, `🚩 Masukkan angka antara 1 - 9.`, m);
+        }
 
             if (json.emot == '💥') {
                 json.state = true;
-                let bomb = this.bomb[id].data[m.sender][1];
+                let bomb = this.bomb[id][1];
                 let teks = `乂  *B O M B*\n\n`;
                 teks += bomb.slice(0, 3).map(v => v.state ? v.emot : v.number).join('') + '\n';
                 teks += bomb.slice(3, 6).map(v => v.state ? v.emot : v.number).join('') + '\n';
@@ -30,16 +34,16 @@ export async function before(m) {
                 teks += `Timeout : [ *${((timeout / 1000) / 60)} menit* ]\n`;
                 teks += `*Permainan selesai!*, kotak berisi bom terbuka : (- *${formatNumber(reward)}*)`;
 
-                this.reply(m.chat, teks, m).then(() => {
+                this.reply(m.chat, teks, this.bomb[id][0]).then(() => {
                     users.exp < reward ? users.exp = 0 : users.exp -= reward;
-                    clearTimeout(this.bomb[id].data[m.sender][2]);
-                    delete this.bomb[id].data[m.sender];
+                    clearTimeout(this.bomb[id][2]);
+                    delete this.bomb[id];
                 });
             } else if (json.state) {
-                return this.reply(m.chat, `🚩 Kotak ${json.number} sudah di buka silahkan pilih kotak yang lain.`, m);
+                return this.reply(m.chat, `🚩 Kotak ${json.number} sudah di buka silahkan pilih kotak yang lain.`, this.bomb[id][0]);
             } else {
                 json.state = true;
-                let changes = this.bomb[id].data[m.sender][1];
+                let changes = this.bomb[id][1];
                 let open = changes.filter(v => v.state && v.emot != '💥').length;
 
                 if (open >= 8) {
@@ -51,10 +55,10 @@ export async function before(m) {
                     teks += `Timeout : [ *${((timeout / 1000) / 60)} menit* ]\n`;
                     teks += `*Permainan selesai!* kotak berisi bom tidak terbuka : (+ *${formatNumber(reward)}*)`;
 
-                    this.reply(m.chat, teks, m).then(() => {
+                    this.reply(m.chat, teks, this.bomb[id][0]).then(() => {
                         users.exp += reward;
-                        clearTimeout(this.bomb[id].data[m.sender][2]);
-                        delete this.bomb[id].data[m.sender];
+                        clearTimeout(this.bomb[id][2]);
+                        delete this.bomb[id];
                     });
                 } else {
                     let teks = `乂  *B O M B*\n\n`;
@@ -65,15 +69,10 @@ export async function before(m) {
                     teks += `Timeout : [ *${((timeout / 1000) / 60)} menit* ]\n`;
                     teks += `Kotak berisi bom tidak terbuka : (+ *${formatNumber(reward)}*)`;
 
-                    this.relayMessage(m.chat, {
-                        protocolMessage: {
-                            key: this.bomb[id].data[m.sender][3],
-                            type: 14,
-                            editedMessage: {
-                                conversation: teks
-                            }
-                        }
-                    }, {}).then(() => {
+                    this.sendMessage(m.chat, {
+            text: teks,
+            edit: this.bomb[id][3]
+        }).then(() => {
                         users.exp += reward;
                     });
                 }
