@@ -1,32 +1,41 @@
-import {
-    downloadContentFromMessage
-} from '@whiskeysockets/baileys';
-import fetch from 'node-fetch';
+import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 
 export async function before(m) {
-    const who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : (m.fromMe ? this.user.jid : m.sender);
-    const pp = await this.profilePictureUrl(who).catch(_ => hwaifu.getRandom());
-    const name = await this.getName(who);
+    const { viewonce } = global.db.data.chats[m.chat];
+    if (!viewonce || !m.mtype || !m.msg || !m.msg.hasOwnProperty('viewOnce')) return;
 
-    const chat = global.db.data.chats[m.chat];
-    if (!chat.viewonce) return;
+    try {
+        const type = m.msg.mimetype.split('/')[0];
+        const media = await downloadContentFromMessage(m.msg, type);
 
-    if (m.mtype == 'viewOnceMessage') {
-        const msg = m.message.viewOnceMessage.message;
-        const type = Object.keys(msg)[0];
-        const media = await downloadContentFromMessage(msg[type], type == 'imageMessage' ? 'image' : 'video');
         let buffer = Buffer.from([]);
 
         for await (const chunk of media) {
             buffer = Buffer.concat([buffer, chunk]);
         }
 
-        if (/video/.test(type)) {
-            this.sendFile(m.chat, buffer, author, msg[type].caption || '', m, null, fakefb);
-            throw new Error('[View Once Video] Detected');
-        } else if (/image/.test(type)) {
-            this.sendFile(m.chat, buffer, author, msg[type].caption || '', m, null, fakefb);
-            throw new Error('[View Once Image] Detected');
+        const fileSize = formatFileSize(m.msg.fileLength);
+
+        const timestamp = getMakassarTimestamp(m.msg.mediaKeyTimestamp);
+
+        const description = `🚫 *Anti-ViewOnce*\n📁 *Media Type:* ${type === 'image' ? 'Image' : type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : 'Unknown'}\n📝 *Caption:* ${m.msg.caption || 'N/A'}\n📏 *Size:* ${fileSize}\n⏰ *Timestamp:* ${timestamp}\n👤 *Sender:* @${m.sender.split('@')[0]}`;
+
+        if (/image|video|audio/.test(type)) {
+            await this.sendFile(m.chat, buffer, type, description || type, m, false, { mentions: [m.sender] });
+            console.log(`[📷 View Once ${type}] Detected`);
         }
+    } catch (error) {
+        console.error('Error processing media:', error);
     }
+}
+
+function formatFileSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'TY', 'EY'];
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round(100 * (bytes / Math.pow(1024, i))) / 100 + ' ' + sizes[i];
+}
+
+function getMakassarTimestamp(timestamp) {
+    const makassarTimestamp = new Date(timestamp * 1000).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
+    return makassarTimestamp;
 }
