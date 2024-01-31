@@ -17,7 +17,7 @@ import {
 } from "fs"
 import chalk from "chalk"
 import fetch from "node-fetch"
-
+import Queque from './lib/queque.js'
 import {
     WelcomeLeave
 } from "./lib/welcome.js"
@@ -34,21 +34,25 @@ const {
     getAggregateVotesInPollMessage,
     makeInMemoryStore,
     WAMessageStubType,
-    delay
+    delay,
+    getContentType
 } = await (await import('@whiskeysockets/baileys')).default;
 import storeSystem from './lib/store-multi.js';
 const store = storeSystem.makeInMemoryStore();
 
 export async function handler(chatUpdate) {
-    this.msgqueque = this.msgqueque || []
-    if (!chatUpdate)
+    this.msgqueque = this.msgqueque || new Queque()
+	if (!chatUpdate)
         return
     this.pushMessage(chatUpdate.messages).catch(console.error)
     let m = chatUpdate.messages[chatUpdate.messages.length - 1]
     if (!m)
         return
-    if (global.db.data == null)
-        await global.loadDatabase()
+	if (m.message?.viewOnceMessageV2) m.message = m.message.viewOnceMessageV2.message
+	if (m.message?.documentWithCaptionMessage) m.message = m.message.documentWithCaptionMessage.message
+	if (m.message?.viewOnceMessageV2Extension) m.message = m.message.viewOnceMessageV2Extension.message
+	if (global.db.data == null)
+		await loadDatabase()
     try {
         m = smsg(this, m) || m
         if (!m)
@@ -1019,16 +1023,11 @@ export async function handler(chatUpdate) {
         const isMods = isOwner || global.mods.map(v => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net").includes(m.sender)
         const isPrems = isROwner || global.prems.map(v => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net").includes(m.sender)
 
-        if (opts["queque"] || global.db.data.settings[this.user.jid].queque && m.text && !(isMods || isPrems)) {
-            let queque = this.msgqueque,
-                time = 1000 * 5
-            const previousID = queque[queque.length - 1]
-            queque.push(m.id || m.key.id)
-            setInterval(async function() {
-                if (queque.indexOf(previousID) === -1) clearInterval(this)
-                await delay(time)
-            }, time)
-        }
+        if (opts["queque"] || global.db.data.settings[this.user.jid].queque && m.text && !m.fromMe && !(isMods || isPrems)) {
+			const id = m.id
+			this.msgqueque.add(id)
+			await this.msgqueque.waitQueue(id)
+		}
 
         if (opts["nyimak"]) return;
         if (!m.fromMe && opts["self"] && !isOwner && !isPrems) return;
@@ -1279,10 +1278,9 @@ export async function handler(chatUpdate) {
         console.error(e)
     } finally {
         if (opts["queque"] || global.db.data.settings[this.user.jid].queque && m.text) {
-            const quequeIndex = this.msgqueque.indexOf(m.id || m.key.id)
-            if (quequeIndex !== -1)
-                this.msgqueque.splice(quequeIndex, 1)
-        }
+			const id = m.id
+			this.msgqueque.unqueue(id)
+		}
         //console.log(global.db.data.users[m.sender])
         let user, stats = global.db.data.stats
         if (m) {
@@ -1536,8 +1534,13 @@ export async function deleteUpdate(message) {
         if (!msg) return
         let chat = global.db.data.chats[msg.chat] || {}
         if (chat.antiDelete) return
-        this.reply(
-            msg.key.remoteJid,
+        const mtype = getContentType(msg.message);
+        if (mtype === 'conversation') {
+            msg.message.extendedTextMessage = { text: msg.message[mtype] };
+            delete msg.message[mtype];
+        }
+        await this.reply(
+            msg.chat,
             `❗ Terdeteksi @${participant.split`@`[0]} telah menghapus pesan.\nUntuk mematikan fitur ini, ketik\n*.off antidelete*\n\nUntuk menghapus pesan yang dikirim BOT, reply pesan dengan perintah\n*.delete*`,
             msg, {
                 contextInfo: {
@@ -1549,7 +1552,7 @@ export async function deleteUpdate(message) {
                 },
             }
         )
-        this.copyNForward(msg.chat, msg, false).catch(e => console.log(e, msg))
+        await this.copyNForward(msg.chat, msg, false).catch(e => console.log(e, msg))
     } catch (e) {
         console.error(e)
     }
@@ -1592,30 +1595,28 @@ export async function presenceUpdate(presenceUpdate) {
     if (user?.afk && status === "composing" && user.afk > -1) {
         if (user.banned) {
             user.afk = -1;
-            user.afkReason = "User Banned Afk";
+            user.afkReason = "Afk Dilarang User";
             return;
         }
 
-        await console.log("AFK - TICK");
+        console.log("AFK - TICK");
         const username = nouser[0].split("@")[0];
         const timeAfk = new Date() - user.afk;
-        const caption = `\n@${username} berhenti afk, dia sedang mengetik\n\nAlasan: ${
-      user.afkReason ? user.afkReason : "No Reason"
-    }\nSelama ${timeAfk.toTimeString()} Yang Lalu\n`;
 
-        this.reply(
-            id,
-            caption,
-            null, {
-                contextInfo: {
-                    mentionedJid: [nouser[0]],
-                    externalAdReply: {
-                        title: "AFK Stopped",
-                        thumbnail: await (await this.getFile("https://cdn-icons-png.flaticon.com/128/2576/2576762.png")).data
-                    },
+        const caption = `\n🚀 @${username} sudah tidak AFK dan sedang mengetik. 📝\n\nAlasan: ${
+            user.afkReason ? user.afkReason : "Tanpa Alasan"
+        }\nSelama ${timeAfk.toTimeString()} yang lalu.\nMenunggu balasan... ⏳`;
+
+        await this.reply(id, caption, null, {
+            contextInfo: {
+                mentionedJid: [nouser[0]],
+                externalAdReply: {
+                    title: "AFK Berhenti",
+                    thumbnail: await (await this.getFile("https://cdn-icons-png.flaticon.com/128/2576/2576762.png")).data
                 },
-            }
-        )
+            },
+        });
+
         user.afk = -1;
         user.afkReason = "";
     }
