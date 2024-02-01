@@ -4,15 +4,27 @@ let handler = async (m, {
     usedPrefix,
     command
 }) => {
-    let user = global.db.data.users[m.sender]
-    user.afk = +new Date
-    user.afkReason = text
-    let caption = `${conn.getName(m.sender)} @${m.sender.split("@")[0]} Sekarang lagi AFK\nDengan Alasan${text ? ': ' + text : ''}`
-    let kataafk = ['mau turu', 'mau nyolong', 'Ke rumah ayang', 'jagain lilin', 'beli pop es', 'kawin lari', 'main kelereng', 'petak umpet', 'push renk', 'push up joni', 'olahraga', 'onani', 'beraq', 'open bo', 'di suruh emak', 'kerja']
-    conn.reply(m.chat, caption, m, {
-        mentions: await conn.parseMention(caption)
-    })
+    try {
+        let user = global.db.data.users[m.sender]
+        user.afk = +new Date();
+        user.afkReason = text;
+
+        const caption = `\n🚀 ${await conn.getName(m.sender)} @${m.sender.split("@")[0]} Sekarang lagi AFK\n*Dengan Alasan:*\n${text ? ' ' + text : 'Tanpa alasan'}`;
+
+        await conn.reply(m.chat, caption, null, {
+            contextInfo: {
+                mentionedJid: [m.sender],
+                externalAdReply: {
+                    title: "AFK Start",
+                    thumbnail: await (await conn.getFile("https://cdn-icons-png.flaticon.com/128/742/742927.png")).data
+                },
+            },
+        });
+    } catch (error) {
+        console.error(error);
+    }
 }
+
 handler.help = ['afk [alasan]']
 handler.tags = ['main']
 handler.group = true
