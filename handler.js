@@ -1595,7 +1595,7 @@ export async function presenceUpdate(presenceUpdate) {
     if (user?.afk && status === "composing" && user.afk > -1) {
         if (user.banned) {
             user.afk = -1;
-            user.afkReason = "Afk Dilarang User";
+            user.afkReason = "Afk Banned User";
             return;
         }
 
@@ -1611,7 +1611,7 @@ export async function presenceUpdate(presenceUpdate) {
             contextInfo: {
                 mentionedJid: [nouser[0]],
                 externalAdReply: {
-                    title: "AFK Berhenti",
+                    title: "AFK Stop",
                     thumbnail: await (await this.getFile("https://cdn-icons-png.flaticon.com/128/2576/2576762.png")).data
                 },
             },
