@@ -31,11 +31,19 @@ export async function before(m) {
         if (timeNow === waktu) {
             let caption = `Hai kak @${who.split`@`[0]},\nWaktu *${sholat}* telah tiba, ambilah air wudhu dan segeralah shalat🙂.\n\n*${waktu}*\n_untuk wilayah Makassar dan sekitarnya._`
             this.autosholat[id] = [
-                this.reply(m.chat, caption, null, {
-                    contextInfo: {
-                        mentionedJid: [who]
-                    }
-                }),
+                this.reply(
+        m.chat,
+        caption,
+        null, {
+            contextInfo: {
+                mentionedJid: [who],
+                externalAdReply: {
+                    title: "Auto Sholat",
+                    thumbnail: await (await this.getFile("https://cdn-icons-png.flaticon.com/128/4527/4527060.png")).data
+                },
+            },
+        }
+    ),
                 setTimeout(() => {
                     delete this.autosholat[id]
                 }, 57000)
