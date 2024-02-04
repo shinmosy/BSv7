@@ -4,7 +4,6 @@ class HangmanGame {
   constructor(id) {
     this.sessionId = id;
     this.guesses = [];
-    this.correctGuesses = [];
     this.maxAttempts = 0;
     this.currentStage = 0;
   }
@@ -22,7 +21,7 @@ class HangmanGame {
   initializeGame = async () => {
     try {
       this.quest = await this.getRandomQuest();
-      this.maxAttempts = this.quest.quest.length + 2;
+      this.maxAttempts = this.quest.quest.length;
     } catch (error) {
       console.error('Error initializing game:', error);
       throw new Error('Failed to initialize the game.');
@@ -30,19 +29,9 @@ class HangmanGame {
   };
 
   displayBoard = () => {
-    const stages = [
-      "```\n==========\n|    |\n|      \n|      \n|      \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|      \n|      \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|   |\n|      \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|  /|\n|      \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|  /|\\ \n|      \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|  /|\\ \n|  /   \n|      \n|      \n==========",
-      "```\n==========\n|    |\n|   💀\n|  /|\\ \n|  / \\ \n|      \n|      \n=========="
-    ];
-
-    let board = stages[this.currentStage];
-
-    return `${board}\n\`\`\`\n*Clue:* ${this.quest.clue}`.trimStart();
+    const emojiStages = ["😐", "😕", "😟", "😧", "😢", "😨", "😵"];
+    let board = `*Current Stage:* ${emojiStages[this.currentStage]}\n\`\`\`==========\n|    |\n|   ${emojiStages[this.currentStage]}\n|   ${this.currentStage >= 3 ? "/" : ""}${this.currentStage >= 4 ? "|" : ""}${this.currentStage >= 5 ? "\\" : ""} \n|   ${this.currentStage >= 1 ? "/" : ""} ${this.currentStage >= 2 ? "\\" : ""} \n|      \n|      \n==========\`\`\`\n*Clue:* ${this.quest.clue}`;
+    return board;
   };
 
   displayWord = () => this.quest.quest.split("").map(char => this.guesses.includes(char) ? `${char}` : "__").join(" ");
@@ -54,10 +43,7 @@ class HangmanGame {
 
     this.guesses.push(letter);
 
-    if (this.quest.quest.includes(letter)) {
-      this.correctGuesses.push(letter);
-      this.currentStage = Math.max(0, this.currentStage - 1);
-    } else {
+    if (!this.quest.quest.includes(letter)) {
       this.currentStage = Math.min(this.quest.quest.length, this.currentStage + 1);
     }
 
@@ -68,10 +54,7 @@ class HangmanGame {
 
   checkGameOver = () => this.currentStage >= this.maxAttempts;
 
-  checkGameWin = () => {
-    const lowerCaseQuest = this.quest.quest;
-    return [...new Set(lowerCaseQuest)].every(char => this.guesses.includes(char));
-  };
+  checkGameWin = () => [...new Set(this.quest.quest)].every(char => this.guesses.includes(char));
 
   getHint = () => `*Hint:* ${this.quest.quest}`;
 }
@@ -83,11 +66,11 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
   try {
     switch (action) {
       case 'end':
-        if (conn.hangman[m.chat]) {
+        if (conn.hangman[m.chat] && conn.hangman[m.chat].sessionId === m.sender) {
           delete conn.hangman[m.chat];
           await m.reply('Berhasil keluar dari sesi Hangman. 👋');
         } else {
-          await m.reply('Tidak ada sesi Hangman yang sedang berlangsung.');
+          await m.reply('Tidak ada sesi Hangman yang sedang berlangsung atau Anda bukan pemainnya.');
         }
         break;
 
@@ -104,7 +87,7 @@ const handler = async (m, { conn, usedPrefix, command, args }) => {
 
       case 'guess':
         if (conn.hangman[m.chat]) {
-          if (!inputs) {
+          if (!inputs || !/^[a-zA-Z]$/.test(inputs)) {
             await m.reply(`Masukkan huruf yang ingin ditebak setelah *guess*. Contoh: *${usedPrefix + command} guess a*`);
             return;
           }
