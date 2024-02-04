@@ -1087,6 +1087,7 @@ const actions = [{
         message: 'Clear Sessions Berhasil ✅',
         color: 'green'
     },
+    /*
     {
         func: purgeSession,
         message: 'Sesi-Sesi Tersimpan Sudah Dihapus ✅',
@@ -1102,6 +1103,7 @@ const actions = [{
         message: 'Berkas Lama Telah Dihapus ✅',
         color: 'green'
     },
+    */
     {
         func: loadConfig,
         message: 'Sukses Re-load config. ✅',

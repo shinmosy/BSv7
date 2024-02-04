@@ -11,7 +11,7 @@ import moment from "moment-timezone"
 
 const {
     WA_DEFAULT_EPHEMERAL
-} = await (await import('@whiskeysockets/baileys')).default;
+} = await (await import("@whiskeysockets/baileys")).default;
 
 import Jimp from 'jimp';
 import {
@@ -384,15 +384,14 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
                 title: "📍 " + Sapa() + Pagi(),
                 body: author,
-                mediaUrl: sgc,
+                mediaUrl: '',
                 description: "𝑾𝒖𝒅𝒚𝒔𝒐𝒇𝒕",
-                previewType: "PHOTO",
                 thumbnail: Thumbnails,
-                sourceUrl: "https://github.com/AyGemuy",
+                sourceUrl: sgc
             }
         }
     }
@@ -412,17 +411,14 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
                 body: author,
                 containsAutoReply: true,
                 mediaType: 1,
-                mediaUrl: sgc,
+                mediaUrl: '',
                 renderLargerThumbnail: true,
-                sourceId: "𝑾𝒖𝒅𝒚𝒔𝒐𝒇𝒕",
-                sourceType: "PDF",
-                previewType: "PDF",
-                sourceUrl: null,
+                sourceUrl: sgc,
                 thumbnail: Thumbnails,
                 title: "📍 " + Sapa() + Pagi()
             }
@@ -442,15 +438,15 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: sig,
-                mediaType: "VIDEO",
+                mediaUrl: '',
+                mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
                 body: author,
                 thumbnail: Thumbnails,
-                sourceUrl: null
+                sourceUrl: sig
             }
         }
     }
@@ -468,15 +464,15 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: sfb,
-                mediaType: "VIDEO",
+                mediaUrl: '',
+                mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
                 body: author,
                 thumbnail: Thumbnails,
-                sourceUrl: null
+                sourceUrl: sfb
             }
         }
     }
@@ -494,10 +490,10 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: snh,
-                mediaType: "VIDEO",
+                mediaUrl: '',
+                mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
                 body: author,
@@ -520,10 +516,10 @@ async function loadConfig() {
             businessMessageForwardInfo: {
                 businessOwnerJid: businessOwnerJid()
             },
-            forwardingScore: 257,
+            forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: syt,
-                mediaType: "VIDEO",
+                mediaUrl: '',
+                mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
                 body: author,
@@ -1395,7 +1391,7 @@ async function resize(url, width, height, referer = null) {
         try {
             const undiciFetchOptions = {
                 redirect: 'follow',
-                headers: {},
+                headers: {}
             };
 
             if (referer) {
