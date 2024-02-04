@@ -1,18 +1,31 @@
-let handler = async (m, { conn }) => {
+let handler = async (m, { conn, args }) => {
   try {
-    const c = conn.chats[m.chat];
-    if (!c || !c.metadata || !c.metadata.participants) return m.reply('Gagal mendapatkan informasi grup.');
-    const others = [conn.user.jid, ...conn.user.listbot.map(v => v.number)];
-    const online = Object.entries(conn.chats).filter(([k, v]) => k.endsWith('@s.whatsapp.net') && v.presences && (c.metadata.participants.some(p => k.startsWith(p.id)) || others.includes(k))).sort((a, b) => a[0].localeCompare(b[0], 'id', { sensitivity: 'base' })).map(([k], i) => `*${i + 1}.* @${k.split('@')[0]}`).join('\n');
-    await m.reply(`*🌐 List Pengguna Online:*\n${online || 'Tidak ada pengguna online saat ini.'}`);
+    let id = args?.[0]?.match(/\d+\-\d+@g.us/) || m.chat;
+    
+    const uniqueOnline = Object.values(conn.chats[id]?.messages || {}).map(item => item.key.participant).filter((value, index, self) => self.indexOf(value) === index);
+    
+    const sortedOnline = uniqueOnline.sort((a, b) => a.split('@')[0].localeCompare(b.split('@')[0]));
+
+    const onlineList = sortedOnline.map((k, i) => `*${i + 1}.* @${k.split('@')[0]}`).join('\n') || 'Tidak ada pengguna online saat ini.';
+    
+    await conn.reply(m.chat, `*🌐 List Pengguna Online:*\n${onlineList}`, m, {
+      contextInfo: { mentionedJid: sortedOnline }
+    });
   } catch (e) {
     console.error(e);
-    m.reply('Terjadi kesalahan.');
   }
 };
-handler.help = ['here', 'online'];
+
+handler.help = ['listonline'];
 handler.tags = ['group'];
-handler.command = /^(here|(list)?online)$/i;
+handler.command = /^(liston(line)?)/i;
+handler.owner = false;
+handler.mods = false;
+handler.premium = false;
 handler.group = true;
+handler.private = false;
+handler.admin = false;
+handler.botAdmin = false;
+handler.fail = null;
 
 export default handler;
