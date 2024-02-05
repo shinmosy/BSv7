@@ -7,6 +7,12 @@ import {
     Tiktok
 } from "@xct007/tiktok-scraper";
 import got from "got";
+import ora from 'ora';
+import chalk from 'chalk';
+import {
+    TiktokJs
+} from "../../lib/download/tiktok-js.js";
+const tikTokDownloader = new TiktokJs();
 
 export async function before(m) {
     const regex = /(http(?:s)?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[^\/]+\/video\/(\d+))|(http(?:s)?:\/\/)?vm\.tiktok\.com\/([^\s&]+)|(http(?:s)?:\/\/)?vt\.tiktok\.com\/([^\s&]+)/g;
@@ -15,58 +21,233 @@ export async function before(m) {
     const spas = "                ";
 
     if (!matches || !matches[0] || chat.autodlTiktok !== true) return;
-
-    await m.reply(wait);
+    m.reply(wait);
 
     try {
-        const videoX = await Tiktok(matches[0]);
+        const video = await tikTokDownloader.aweme(matches[0]);
+        const caption = `${spas}*[ T I K T O K ]*\n` +
+            `Video description: ${video.description}\n` +
+            `🔗 IDr: ${video.video_id}\n` +
+            `👤 Author: ${video.author.name}\n` +
+            `❤️ Views: ${video.stats.total_views}\n` +
+            `💬 Comments: ${video.stats.total_comment}\n` +
+            `🔁 Shares: ${video.stats.total_share}\n` +
+            `▶️ Download: ${video.stats.total_download}\n` +
+            `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+            `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+            `${spas}*[ aweme ]*`;
 
-        const XctCap = `${spas}*[ T I K T O K ]*
+        await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+    } catch (e) {
+        try {
+            const video = await tikTokDownloader.musicaldown(matches[0]);
+            const caption = `${spas}*[ T I K T O K ]*\n` +
+                `Video title: ${video.title}\n` +
+                `🔗 ID: ${video.video_id}\n` +
+                `👤 Author: ${video.author.name}\n` +
+                `🎵 Music: ${video.music.title}\n` +
+                `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                `${spas}*[ musicaldown ]*`;
+
+            await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+        } catch (e) {
+            try {
+                const video = await tikTokDownloader.savetik(matches[0]);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `🎵 Music: ${video.music.title}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ savetik ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                try {
+                    const video = await tikTokDownloader.snaptik(matches[0]);
+                    const caption = `${spas}*[ T I K T O K ]*\n` +
+                        `Video title: ${video.title}\n` +
+                        `🔗 ID: ${video.video_id}\n` +
+                        `👤 Author: ${video.author.name}\n` +
+                        `❤️ Views: ${video.total_views}\n` +
+                        `💬 Comments: ${video.total_comment}\n` +
+                        `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                        `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                        `${spas}*[ snaptik ]*`;
+
+                    await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+                } catch (e) {
+                    try {
+                        const video = await tikTokDownloader.snaptikpro(matches[0]);
+                        const caption = `${spas}*[ T I K T O K ]*\n` +
+                            `Video title: ${video.title}\n` +
+                            `🔗 ID: ${video.video_id}\n` +
+                            `👤 Author: ${video.author.name}\n` +
+                            `❤️ Views: ${video.total_views}\n` +
+                            `💬 Comments: ${video.total_comment}\n` +
+                            `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                            `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                            `${spas}*[ snaptikpro ]*`;
+
+                        await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+                    } catch (e) {
+                        try {
+                            const video = await tikTokDownloader.ssstik(matches[0]);
+                            const caption = `${spas}*[ T I K T O K ]*\n` +
+                                `Video title: ${video.title}\n` +
+                                `🔗 ID: ${video.video_id}\n` +
+                                `👤 Author: ${video.author.name}\n` +
+                                `❤️ Views: ${video.total_views}\n` +
+                                `💬 Comments: ${video.total_comment}\n` +
+                                `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                `${spas}*[ ssstik ]*`;
+
+                            await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+                        } catch (e) {
+                            try {
+                                const video = await tikTokDownloader.tikcdn(matches[0]);
+                                const caption = `${spas}*[ T I K T O K ]*\n` +
+                                    `Video description: ${video.description}\n` +
+                                    `🔗 IDr: ${video.video_id}\n` +
+                                    `👤 Author: ${video.author.name}\n` +
+                                    `❤️ Views: ${video.stats.total_views}\n` +
+                                    `💬 Comments: ${video.stats.total_comment}\n` +
+                                    `🔁 Shares: ${video.stats.total_share}\n` +
+                                    `▶️ Download: ${video.stats.total_download}\n` +
+                                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                    `${spas}*[ tikcdn ]*`;
+
+                                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+                            } catch (e) {
+                                try {
+                                    const video = await tikTokDownloader.tikmate(matches[0]);
+                                    const caption = `${spas}*[ T I K T O K ]*\n` +
+                                        `Video title: ${video.title}\n` +
+                                        `🔗 ID: ${video.video_id}\n` +
+                                        `👤 Author: ${video.author.name}\n` +
+                                        `❤️ Views: ${video.total_views}\n` +
+                                        `💬 Comments: ${video.total_comment}\n` +
+                                        `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                        `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                        `${spas}*[ tikmate ]*`;
+
+                                    await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+                                } catch (e) {
+                                    try {
+                                        const video = await tikTokDownloader.tiktokdownloadr(matches[0]);
+                                        const caption = `${spas}*[ T I K T O K ]*\n` +
+                                            `Video title: ${video.title}\n` +
+                                            `🔗 ID: ${video.video_id}\n` +
+                                            `👤 Author: ${video.author.name}\n` +
+                                            `❤️ Views: ${video.total_views}\n` +
+                                            `💬 Comments: ${video.total_comment}\n` +
+                                            `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                            `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                            `${spas}*[ tiktokdownloadr ]*`;
+
+                                        await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+                                    } catch (e) {
+                                        try {
+                                            const video = await tikTokDownloader.tikwm(matches[0]);
+                                            const caption = `${spas}*[ T I K T O K ]*\n` +
+                                                `Video title: ${video.title}\n` +
+                                                `🔗 IDr: ${video.video_id}\n` +
+                                                `👤 Author: ${video.author.name}\n` +
+                                                `❤️ Views: ${video.stats.total_views}\n` +
+                                                `💬 Comments: ${video.stats.total_comment}\n` +
+                                                `🔁 Shares: ${video.stats.total_share}\n` +
+                                                `▶️ Download: ${video.stats.total_download}\n` +
+                                                `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                                `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                                `${spas}*[ tikwm ]*`;
+
+                                            await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+                                        } catch (e) {
+                                            try {
+                                                const video = await tikTokDownloader.ttdownloader(matches[0]);
+                                                const caption = `${spas}*[ T I K T O K ]*\n` +
+                                                    `Video title: ${video.title}\n` +
+                                                    `🔗 ID: ${video.video_id}\n` +
+                                                    `👤 Author: ${video.author.name}\n` +
+                                                    `❤️ Views: ${video.total_views}\n` +
+                                                    `💬 Comments: ${video.total_comment}\n` +
+                                                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                                                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                                                    `${spas}*[ ttdownloader ]*`;
+
+                                                await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+                                            } catch (e) {
+                                                try {
+                                                    const videoX = await Tiktok(matches[0]);
+
+                                                    const XctCap = `${spas}*[ T I K T O K ]*
 ${getUserProfileInfo(videoX)}
 \n${spas}*[ V1 ]*`;
 
-        await conn.sendFile(m.chat, videoX.download.nowm || giflogo, "", XctCap, m);
-    } catch (e) {
-        try {
-            const video = await fetchVideo(matches[0]);
+                                                    await conn.sendFile(m.chat, videoX.download.nowm || giflogo, "", XctCap, m);
+                                                } catch (e) {
+                                                    try {
+                                                        const spinner = ora({
+                                                            text: 'Downloading...',
+                                                            spinner: 'moon',
+                                                        }).start();
+                                                        const video = await fetchVideo(matches[0]);
 
-            const buffer = await video.download({
-                progress: (p) => {
-                    console.log(`Downloaded ${p.progress}% (${p.downloaded}/${p.total} bytes)`);
-                },
-            });
+                                                        const buffer = await video.download({
+                                                            progress: (p) => {
+                                                                const progressText = chalk.blue(`Downloaded ${p.progress}%`) +
+                                                                    ` (${chalk.green(p.downloaded)}/${chalk.green(p.total)} bytes)`;
+                                                                spinner.text = progressText;
+                                                            },
+                                                        });
 
-            const PrevCap = `${spas}*[ T I K T O K ]*
+                                                        spinner.succeed(chalk.green('Download completed'));
+
+                                                        const PrevCap = `${spas}*[ T I K T O K ]*
 ${getVideoInfo(video)}
 \n${spas}*[ V2 ]*`;
 
-            await conn.sendFile(m.chat, buffer || giflogo, "", PrevCap, m);
-        } catch (e) {
-            try {
-                const god = await axios.get(
-                    "https://godownloader.com/api/tiktok-no-watermark-free?url=" + matches[0] + "&key=godownloader.com"
-                );
+                                                        await conn.sendFile(m.chat, buffer || giflogo, "", PrevCap, m);
+                                                    } catch (e) {
+                                                        try {
+                                                            const god = await axios.get(
+                                                                "https://godownloader.com/api/tiktok-no-watermark-free?url=" + matches[0] + "&key=godownloader.com"
+                                                            );
 
-                const GoCap = `${spas}*[ T I K T O K ]*
+                                                            const GoCap = `${spas}*[ T I K T O K ]*
 *Desc:* ${god.data.desc}
 \n${spas}*[ V4 ]*`;
 
-                await conn.sendFile(m.chat, god.data.video_no_watermark, "", GoCap, m);
-            } catch (e) {
-                try {
-                    const Scrap = await Tiktokdl(matches[0]);
+                                                            await conn.sendFile(m.chat, god.data.video_no_watermark, "", GoCap, m);
+                                                        } catch (e) {
+                                                            try {
+                                                                const Scrap = await Tiktokdl(matches[0]);
 
-                    const S = Scrap.result;
-                    const ScrapCap = `${spas}*「 T I K T O K 」*
+                                                                const S = Scrap.result;
+                                                                const ScrapCap = `${spas}*「 T I K T O K 」*
 *📛 Author:* ${S.author.nickname}
 *📒 Title:* ${S.desc}
 \n${spas}*[ V5 ]*`;
 
-                    await conn.sendFile(m.chat, S.download.nowm, "", ScrapCap, m);
-                } catch (e) {}
+                                                                await conn.sendFile(m.chat, S.download.nowm, "", ScrapCap, m);
+                                                            } catch (e) {}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
+
 }
 
 export const disabled = false;
