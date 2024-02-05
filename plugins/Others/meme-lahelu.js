@@ -1,4 +1,24 @@
+import axios from "axios";
 import fetch from "node-fetch";
+
+const fetchData = async (query, page) => {
+    const url = `https://lahelu.com/api/post/get-search?query=${query}&page=${page}`;
+
+    try {
+        const response = await axios.get(url);
+        return response.data;
+    } catch (axiosError) {
+        console.error('Error with Axios:', axiosError);
+
+        try {
+            const fetchResponse = await fetch(url);
+            return await fetchResponse.json();
+        } catch (fetchError) {
+            console.error('Error with Fetch:', fetchError);
+            throw fetchError;
+        }
+    }
+};
 
 const handler = async (m, {
     conn,
@@ -6,41 +26,47 @@ const handler = async (m, {
 }) => {
     const parts = text.trim().split("|").map(item => item.trim());
 
-    if (parts.length < 1) {
-        conn.reply(m.chat, '📚 Contoh penggunaan: *lahelu query|page|part*', m);
-        return;
-    }
+    if (parts.length < 1) return conn.reply(m.chat, '📚 Contoh penggunaan: *lahelu query|page|part*', m);
 
-    const query = parts[0];
-    const page = parseInt(parts[1]) || 0;
-    const part = parseInt(parts[2]) || 0;
-
-    const url = `https://lahelu.com/api/post/get-search?query=${query}&page=${page}`;
+    const [query, page, part] = parts;
+    const pageNum = +page || 1;
+    const partNum = +part || 1;
 
     try {
-        const response = await fetch(url);
-        const data = await response.json();
+        const {
+            postInfos
+        } = await fetchData(query, pageNum);
 
-        if (data.postInfos && data.postInfos.length > 0) {
-            if (part > 0 && part <= data.postInfos.length) {
-                const result = data.postInfos[part - 1];
+        if (postInfos && postInfos.length > 0) {
+            if (partNum > 0 && partNum <= postInfos.length) {
+                const {
+                    postID,
+                    userID,
+                    title,
+                    totalUpvotes,
+                    totalDownvotes,
+                    totalComments,
+                    createTime,
+                    media,
+                    sensitive,
+                    userUsername
+                } = postInfos[partNum - 1];
                 const message = `
-📌 *Post ID:* ${result.postID}
-👤 *User ID:* ${result.userID}
-📜 *Title:* ${result.title}
-👍 *Total Upvotes:* ${result.totalUpvotes}
-👎 *Total Downvotes:* ${result.totalDownvotes}
-💬 *Total Comments:* ${result.totalComments}
-⏰ *Create Time:* ${new Date(result.createTime).toLocaleString()}
-🖼️ *Media:* ${result.media}
-🚫 *Sensitive:* ${result.sensitive ? 'Yes' : 'No'}
-🧑‍💼 *User Username:* ${result.userUsername}
+📌 *Post ID:* ${postID}
+👤 *User ID:* ${userID}
+📜 *Title:* ${title}
+👍 *Total Upvotes:* ${totalUpvotes}
+👎 *Total Downvotes:* ${totalDownvotes}
+💬 *Total Comments:* ${totalComments}
+⏰ *Create Time:* ${new Date(createTime).toLocaleString()}
+🖼️ *Media:* ${media}
+🚫 *Sensitive:* ${sensitive ? 'Yes' : 'No'}
+🧑‍💼 *User Username:* ${userUsername}
 \n📚 Contoh penggunaan: *lahelu query|page|part*`;
-                await conn.sendFile(m.chat, 'https://cache.lahelu.com/' + result.media, '', message, m);
-            } else if (page > 0) {
-                const listMessage = data.postInfos
-                    .map((post, index) => `*${index + 1}.* ${post.title}`)
-                    .join('\n');
+
+                await conn.sendFile(m.chat, `https://cache.lahelu.com/${media}`, '', message, m);
+            } else if (pageNum > 0) {
+                const listMessage = postInfos.map((post, index) => `*${index + 1}.* ${post.title}`).join('\n');
                 const helpMessage = `\n\n📚 Contoh penggunaan: *lahelu query|page|part*`;
                 conn.reply(m.chat, listMessage + helpMessage, m);
             } else {
@@ -53,7 +79,7 @@ const handler = async (m, {
         console.error('Terjadi kesalahan:', error);
         conn.reply(m.chat, '❌ Terjadi kesalahan saat mengambil data. Pastikan format input benar.\n\n📚 Contoh penggunaan: *lahelu query|page|part*', m);
     }
-}
+};
 
 handler.help = ['lahelu'].map(v => v + ' query|page|part');
 handler.tags = ['internet'];
