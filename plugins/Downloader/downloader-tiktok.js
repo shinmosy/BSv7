@@ -10,6 +10,10 @@ import {
 } from "@xct007/tiktok-scraper"
 import ora from 'ora';
 import chalk from 'chalk';
+import {
+    TiktokJs
+} from "../../lib/download/tiktok-js.js";
+const tikTokDownloader = new TiktokJs();
 
 let handler = async (m, {
     command,
@@ -19,13 +23,9 @@ let handler = async (m, {
     args
 }) => {
 
-    let lister = [
-        "v1",
-        "v2",
-        "v3",
-        "v4",
-        "v5"
-    ]
+    let lister = Array.from({
+        length: 15
+    }, (_, index) => `v${index + 1}`);
     let spas = "                "
     let [inputs, feature, inputs_, inputs__, inputs___] = text.split(" ")
     feature = feature || lister.getRandom()
@@ -35,6 +35,229 @@ let handler = async (m, {
     if (lister.includes(feature)) {
 
         if (feature == "v1") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.aweme(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video description: ${video.description}\n` +
+                    `🔗 IDr: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.stats.total_views}\n` +
+                    `💬 Comments: ${video.stats.total_comment}\n` +
+                    `🔁 Shares: ${video.stats.total_share}\n` +
+                    `▶️ Download: ${video.stats.total_download}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ aweme ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v2") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.musicaldown(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `🎵 Music: ${video.music.title}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ musicaldown ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v3") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.savetik(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `🎵 Music: ${video.music.title}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ savetik ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v4") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.snaptik(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ snaptik ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v5") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.snaptikpro(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ snaptikpro ]*`;
+
+                await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v6") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.ssstik(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ ssstik ]*`;
+
+                await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v7") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.tikcdn(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video description: ${video.description}\n` +
+                    `🔗 IDr: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.stats.total_views}\n` +
+                    `💬 Comments: ${video.stats.total_comment}\n` +
+                    `🔁 Shares: ${video.stats.total_share}\n` +
+                    `▶️ Download: ${video.stats.total_download}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ tikcdn ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v8") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.tikmate(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ tikmate ]*`;
+
+                await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v9") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.tiktokdownloadr(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ tiktokdownloadr ]*`;
+
+                await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v10") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.tikwm(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 IDr: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.stats.total_views}\n` +
+                    `💬 Comments: ${video.stats.total_comment}\n` +
+                    `🔁 Shares: ${video.stats.total_share}\n` +
+                    `▶️ Download: ${video.stats.total_download}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ tikwm ]*`;
+
+                await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+        if (feature == "v11") {
+            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
+            m.reply(wait)
+            try {
+                const video = await tikTokDownloader.ttdownloader(inputs);
+                const caption = `${spas}*[ T I K T O K ]*\n` +
+                    `Video title: ${video.title}\n` +
+                    `🔗 ID: ${video.video_id}\n` +
+                    `👤 Author: ${video.author.name}\n` +
+                    `❤️ Views: ${video.total_views}\n` +
+                    `💬 Comments: ${video.total_comment}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `${spas}*[ ttdownloader ]*`;
+
+                await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
+            } catch (e) {
+                throw eror
+            }
+        }
+
+        if (feature == "v12") {
             if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
             m.reply(wait)
             try {
@@ -50,7 +273,7 @@ let handler = async (m, {
                 throw eror
             }
         }
-        if (feature == "v2") {
+        if (feature == "v13") {
             if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
             m.reply(wait)
             try {
@@ -64,33 +287,25 @@ let handler = async (m, {
                 throw eror
             }
         }
-        if (feature == "v3") {
-            if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
-            m.reply(wait)
-            try {
 
-            } catch (e) {
-                throw eror
-            }
-        }
-        if (feature == "v4") {
+        if (feature == "v14") {
             if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
             m.reply(wait)
             const spinner = ora({
-    text: 'Downloading...',
-    spinner: 'moon',
-}).start();
+                text: 'Downloading...',
+                spinner: 'moon',
+            }).start();
             try {
                 const video = await fetchVideo(inputs);
                 const buffer = await video.download({
-        progress: (p) => {
-            const progressText = chalk.blue(`Downloaded ${p.progress}%`) +
-                ` (${chalk.green(p.downloaded)}/${chalk.green(p.total)} bytes)`;
-            spinner.text = progressText;
-        },
-    });
+                    progress: (p) => {
+                        const progressText = chalk.blue(`Downloaded ${p.progress}%`) +
+                            ` (${chalk.green(p.downloaded)}/${chalk.green(p.total)} bytes)`;
+                        spinner.text = progressText;
+                    },
+                });
 
-    spinner.succeed(chalk.green('Download completed'));
+                spinner.succeed(chalk.green('Download completed'));
 
                 let PrevCap = `${spas}*[ T I K T O K ]*
 
@@ -99,10 +314,10 @@ ${getVideoInfo(video)}
                 await conn.sendFile(m.chat, buffer || giflogo, "", PrevCap, m)
             } catch (e) {
                 spinner.fail(chalk.red('Download failed'));
-    console.error(error);
+                console.error(error);
             }
         }
-        if (feature == "v5") {
+        if (feature == "v15") {
             if (!inputs) return m.reply(`*Input tiktok link*\n\n${exam}`)
             m.reply(wait)
             try {
