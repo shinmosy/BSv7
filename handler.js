@@ -37,8 +37,6 @@ const {
     delay,
     getContentType
 } = await (await import('@whiskeysockets/baileys')).default;
-import storeSystem from './lib/store-multi.js';
-const store = storeSystem.makeInMemoryStore();
 
 export async function handler(chatUpdate) {
     this.msgqueque = this.msgqueque || new Queque()

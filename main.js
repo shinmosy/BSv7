@@ -216,15 +216,12 @@ var [
     storeSystem.useMultiFileAuthState(authFolder)
 ])
 
-const store = storeSystem.makeInMemoryStore();
 const logger = Pino({
     level: "silent"
 });
-/*
-const store = makeInMemoryStore({
+global.store = storeSystem.makeInMemoryStore({
     logger
 })
-*/
 
 // Convert single auth to multi auth
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
@@ -237,7 +234,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
 }
 
 var storeFile = `${Helper.opts._[0] || 'data'}.store.json`
-store.readFromFile(storeFile)
+global.store.readFromFile(storeFile)
 
 const connectionOptions = {
     ...(!pairingCode && !useMobile && !useQr && {
@@ -279,9 +276,9 @@ const connectionOptions = {
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
-        if (store) {
+        if (global.store) {
             let jid = jidNormalizedUser(key.remoteJid)
-            let msg = await store.loadMessage(jid, key.id)
+            let msg = await global.store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
         return proto.Message.fromObject({});
@@ -297,7 +294,7 @@ const connectionOptions = {
 };
 
 global.conn = makeWaSocket(connectionOptions);
-store.bind(conn.ev)
+global.store.bind(conn.ev)
 conn.isInit = false
 
 if (pairingCode && !conn.authState.creds.registered) {
@@ -993,90 +990,6 @@ async function clearSessions(folder = './TaylorSession') {
     }
 }
 
-async function purgeSession() {
-    try {
-        const prekeyFolder = './TaylorSession';
-        const prekeyFiles = await readdirSync(prekeyFolder);
-        await Promise.all(prekeyFiles.map(async (file) => {
-            try {
-                if (file !== 'creds.json') {
-                    await unlinkSync(path.join(prekeyFolder, file));
-                }
-            } catch (err) {
-                console.error(`Error unlinking ${file}: ${err.message}`);
-            }
-        }));
-    } catch (err) {
-        console.error(`Error in purgeSession: ${err.message}`);
-    }
-}
-
-async function purgeSessionSB() {
-    try {
-        const directories = ['./TaylorSession/', './jadibot/'];
-        await Promise.all(directories.map(async (folderPath) => {
-            try {
-                if (!existsSync(folderPath)) {
-                    await mkdirSync(folderPath);
-                    console.log(`\nFolder ${folderPath} successfully created.`);
-                }
-                const listaDirectorios = await readdirSync(folderPath);
-                await Promise.all(listaDirectorios.map(async (filesInDir) => {
-                    const dirPath = path.join(folderPath, filesInDir);
-
-                    try {
-                        const isDirectory = (await statSync(dirPath)).isDirectory();
-                        if (isDirectory) {
-                            const SBprekeyFiles = await readdirSync(dirPath);
-                            await Promise.all(SBprekeyFiles.map(async (fileInDir) => {
-                                try {
-                                    if (fileInDir !== 'creds.json') {
-                                        await unlinkSync(path.join(dirPath, fileInDir));
-                                    }
-                                } catch (err) {
-                                    console.error(`Error unlinking ${fileInDir}: ${err.message}`);
-                                }
-                            }));
-                        }
-                    } catch (err) {
-                        console.error(`Error checking directory ${dirPath}: ${err.message}`);
-                    }
-                }));
-            } catch (err) {
-                console.error(`Error in purgeSessionSB: ${err.message}`);
-            }
-        }));
-    } catch (err) {
-        console.error(`Error in purgeSessionSB: ${err.message}`);
-    }
-}
-
-async function purgeOldFiles() {
-    try {
-        const directories = ['./TaylorSession/', './jadibot/'];
-        const oneHourAgo = Date.now() - (60 * 60 * 1000);
-        await Promise.all(directories.map(async (dir) => {
-            const files = await readdirSync(dir);
-            await Promise.all(files.map(async (file) => {
-                try {
-                    const filePath = path.join(dir, file);
-                    const stats = await statSync(filePath);
-                    if (stats.isFile() && stats.mtimeMs < oneHourAgo && file !== 'creds.json') {
-                        await unlinkSync(filePath);
-                        console.log(`\nFile ${file} successfully deleted`);
-                    } else {
-                        console.warn(`\nFile ${file} not deleted`);
-                    }
-                } catch (err) {
-                    console.error(`Error processing ${file}: ${err.message}`);
-                }
-            }));
-        }));
-    } catch (err) {
-        console.error(`Error in purgeOldFiles: ${err.message}`);
-    }
-}
-
 const actions = [{
         func: clearTmp,
         message: 'Penyegaran Tempat Penyimpanan Berhasil ✅',
@@ -1087,23 +1000,6 @@ const actions = [{
         message: 'Clear Sessions Berhasil ✅',
         color: 'green'
     },
-    /*
-    {
-        func: purgeSession,
-        message: 'Sesi-Sesi Tersimpan Sudah Dihapus ✅',
-        color: 'green'
-    },
-    {
-        func: purgeSessionSB,
-        message: 'Sesi-Sesi Sub-Bot Telah Dihapus ✅',
-        color: 'green'
-    },
-    {
-        func: purgeOldFiles,
-        message: 'Berkas Lama Telah Dihapus ✅',
-        color: 'green'
-    },
-    */
     {
         func: loadConfig,
         message: 'Sukses Re-load config. ✅',
