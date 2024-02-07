@@ -141,5 +141,4 @@ const formatResult = (result) => {
     ].join(' ');
 };
 
-export { runSyntaxCheck };
 runSyntaxCheck();
