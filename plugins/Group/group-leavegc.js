@@ -1,72 +1,65 @@
-let handler = async (m, {
-    conn,
-    usedPrefix,
-    text,
-    command,
-    args,
-    isOwner,
-    isAdmin,
-    isROwner
-}) => {
-    let chat = Object.keys(conn.chats).filter(v => v.endsWith('g.us'))
-    if (command.endsWith('all') || command.endsWith('semua')) {
-        for (let id of chat) { // perulangan
-            await conn.groupLeave(id)
-            await delay(2000) // jeda 2 detik
-        }
-        await m.reply('Berhasil!')
-    }
+let handler = async (m, { conn, usedPrefix, command, args, isOwner }) => {
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    let chat = Object.keys(conn.chats).filter((v) => v.endsWith('g.us'));
     let groups = Object.keys(conn.chats)
-        .filter(key => key.endsWith('@g.us'))
-        .map(key => conn.chats[key]);
-    let listSections = []
-    Object.keys(groups).map((i, index) => {
-        listSections.push([++index + ' ' + cmenub + ' ' + groups[i].subject, [
-            ['LEAVE NOW', usedPrefix + command + ' gw ' + [i], '']
-        ]])
-    })
+        .filter((key) => key.endsWith('@g.us'))
+        .map((key) => conn.chats[key]);
 
-    let type = (args[0] || '').toLowerCase()
-    try {
-        switch (type) {
-            case 'gw':
-                let i = args[1]
-                let ppgc = await conn.profilePictureUrl(groups[i].id, 'image')
-                let str = `*${dmenut}* ${[i]}
-~*${dmenub} Name :* ${groups[i].subject}~
-~*${dmenub} Owner :* ${groups[i].owner ? "@" + groups[i].owner.split("@")[0] : "Unknown"}~
-~*${dmenub} Subject Owner :* ${groups[i].subjectOwner ? "@" + groups[i].subjectOwner.split("@")[0] : "Unknown"}~
-~*${dmenub} ID :* ${groups[i].id}~
-~*${dmenub} Restrict :* ${groups[i].restrict}~
-~*${dmenub} Announce :* ${groups[i].announce}~
-~*${dmenub} Ephemeral :* ${new Date(groups[i].ephemeralDuration* 1000).toDateString()}~
-~*${dmenub} Desc ID :* ${groups[i].descId}~
-~*${dmenub} Description :* ${groups[i].desc?.toString().slice(0, 10) + '...' || 'unknown'}~
-~*${dmenub} Admins :* ${groups[i].participants.filter(p => p.admin).map((v, i) => `\n${dmenub} ${i + 1}. @${v.id.split('@')[0]}`).join(' [admin]')}~
-~${isOwner ? `*${dmenub} Participants :* ${groups[i].participants.length}` : ''}~
-~${isOwner ? `*${dmenub} isBotAdmin :* [ ${!!groups[i].participants.find(v => v.id == conn.user.jid).admin} ]` : ''}~
-~*${dmenub} Created :* ${new Date(groups[i].subjectTime* 1000).toDateString()}~
-~*${dmenub} Creation :* ${new Date(groups[i].creation* 1000).toDateString()}~
-~*${dmenub} Size :* ${groups[i].size}~
-${dmenuf}`
+    if (args[0] && (args[0].toLowerCase() === 'all' || args[0].toLowerCase() === 'semua')) {
+        await Promise.all(chat.map(async (id) => {
+            await conn.groupLeave(id);
+            await delay(2000);
+        }));
+        let pesan = '*Success!* Semua grup telah di-leave.';
+        await m.reply(pesan);
+    } else {
+        try {
+            if (!args[0] || isNaN(args[0])) {
+                let usageMessage = `⚠️ *Invalid input.* Harap berikan nomor grup yang valid.\n\nCara Penggunaan: ${usedPrefix + command} <nomor grup>`;
+                let listMessage = "*List Grup:*\n" + groups.map((group, index) => `*${index + 1}.* ${group.subject}`).join('\n');
+                return m.reply(usageMessage + "\n\n" + listMessage);
+            }
 
-                await conn.sendFile(m.chat, ppgc ? ppgc : logo, '', str, m)
-                await conn.groupLeave(groups[i].id)
-                await delay(2000) // jeda 2 detik
-                await m.reply('Succes Leave ' + groups[i].subject + ' !')
-                break
+            let i = parseInt(args[0]);
+            if (i <= 0 || i > groups.length) {
+                let listMessage = "*⚠️ Invalid input.* Harap gunakan nomor grup yang valid.\n\n" + groups.map((group, index) => `*${index + 1}.* ${group.subject}`).join('\n');
+                return m.reply(listMessage);
+            }
 
-            default:
-                if (!/[01]/.test(command)) return conn.sendList(m.chat, htki + ' 📺 Group List 🔎 ' + htka, `⚡ Silakan pilih Group List di tombol di bawah...\n*Teks yang anda kirim:* ${text ? text : 'Kosong'}\n\nKetik ulang *${usedPrefix + command}* teks anda untuk mengubah teks lagi`, author, `☂️ Group List Disini ☂️`, listSections, m)
-                throw false
+            let groupIndex = i - 1;
+
+            let str = `${[i]}
+*Nama Grup :* ${groups[groupIndex].subject} 
+*Owner :* ${groups[groupIndex].owner ? "@" + groups[groupIndex].owner.split("@")[0] : "Tidak Diketahui"}
+*Subject Owner :* ${groups[groupIndex].subjectOwner ? "@" + groups[groupIndex].subjectOwner.split("@")[0] : "Tidak Diketahui"}
+*ID :* ${groups[groupIndex].id}
+*Restrict :* ${groups[groupIndex].restrict}
+*Announce :* ${groups[groupIndex].announce}
+*Ephemeral :* ${new Date(groups[groupIndex].ephemeralDuration * 1000).toDateString()}
+*Desc ID :* ${groups[groupIndex].descId}
+*Description :* ${groups[groupIndex].desc?.toString().slice(0, 10) + '...' || 'Tidak Diketahui'}
+*Admins :* ${groups[groupIndex].participants.filter(p => p.admin).map((v, i) => `\n${i + 1}. @${v.id.split('@')[0]}`).join(' [admin]')}
+${isOwner ? `*Participants :* ${groups[groupIndex].participants.length}` : ''}
+${isOwner ? `*isBotAdmin :* [ ${!!groups[groupIndex].participants.find(v => v.id == conn.user.jid).admin} ]` : ''}
+*Created :* ${new Date(groups[groupIndex].subjectTime * 1000).toDateString()}
+*Creation :* ${new Date(groups[groupIndex].creation * 1000).toDateString()}
+*Size :* ${groups[groupIndex].size}
+`;
+
+            await m.reply(str);
+            await conn.groupLeave(groups[groupIndex].id);
+            await delay(2000);
+            await m.reply('*Success!* Grup ' + groups[groupIndex].subject + ' telah di-leave!');
+        } catch (err) {
+            await m.reply('*Error!* Terjadi kesalahan.');
+            console.error(err);
         }
-    } catch {
-        throw 'Grup Tidak Ditemukan Atau Bot Sudah Out!'
     }
-}
-handler.help = ['gc', 'gcall', 'group'].map(v => 'leave' + v)
-handler.tags = ['group']
-handler.command = /^leaveg(c|ro?up)(all|semua)?$/i
-handler.rowner = true
-export default handler
-const delay = time => new Promise(res => setTimeout(res, time))
+};
+
+handler.help = ['leave', 'leavegc'].map((v) => v + ' <nomor grup>');
+handler.tags = ['group'];
+handler.command = /^leave(g(c|ro?up))?$/i;
+handler.rowner = true;
+export default handler;
