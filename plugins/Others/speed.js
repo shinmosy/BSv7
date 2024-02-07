@@ -203,15 +203,7 @@ const readMore = more.repeat(4001);
 function clockString(ms) {
     try {
         let [d, h, m, s] = isNaN(ms) ? ['--', '--', '--', '--'] : [Math.floor(ms / 86400000), Math.floor(ms / 3600000) % 24, Math.floor(ms / 60000) % 60, Math.floor(ms / 1000) % 60];
-        return `☀️ * $ {
-    d
-}* Days\ n🕐 * $ {
-    h
-}* Hours\ n⏰ * $ {
-    m
-}* Minutes\ n⏱️ * $ {
-    s
-}* Seconds`;
+        return `☀️ *${d}* Days\n🕐 *${h}* Hours\n⏰ *${m}* Minutes\n⏱️ *${s}* Seconds`;
     } catch (error) {
         console.error(error);
         return 'Error in clockString function';

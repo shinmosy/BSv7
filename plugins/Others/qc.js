@@ -1,69 +1,19 @@
-import {
-    sticker
-} from '../../lib/sticker.js';
+import { sticker } from '../../lib/sticker.js';
 import axios from 'axios';
 
-let handler = async (m, {
-    conn,
-    text,
-    usedPrefix,
-    command
-}) => {
-    let reply;
-
-    try {
-        if (text && m.quoted) {
-            if (m.quoted.text || m.quoted.sender) {
-                reply = {
-                    "name": await conn.getName(m.quoted.sender),
-                    "text": m.quoted.text || '',
-                    "chatId": m.chat.split('@')[0],
-                };
-            }
-        } else if (text && !m.quoted) {
-            reply = {};
-        } else if (!text && m.quoted) {
-            if (m.quoted.text) {
-                text = m.quoted.text || '';
-            }
-            reply = {};
-        } else {
-            throw "Input teks atau reply teks yang ingin dijadikan quote!";
-        }
-
-        await m.reply(wait);
-
-        let pp = await conn.profilePictureUrl(m.sender, 'image').catch(_ => 'https://telegra.ph/file/a2ae6cbfa40f6eeea0cf1.jpg');
-
-        const obj = {
-            "type": "quote",
-            "format": "png",
-            "backgroundColor": getRandomHexColor().toString(),
-            "width": 512,
-            "height": 768,
-            "scale": 2,
-            "messages": [{
-                "entities": [],
-                "avatar": true,
-                "from": {
-                    "chatId": m.chat.split('@')[0],
-                    "name": m.name,
-                    "photo": {
-                        "url": pp
-                    }
-                },
-                "text": text,
-                "replyMessage": reply
-            }]
-        };
-
-        const buffer = await Quotly(obj);
-        let stiker = await sticker(buffer, false, global.packname, global.author);
-        if (stiker) return conn.sendFile(m.chat, stiker, 'Quotly.webp', '', m);
-    } catch (error) {
-        console.error(error);
-        return m.reply("Terjadi kesalahan dalam menjalankan perintah.");
-    }
+let handler = async (m, { conn, text }) => {
+  try {
+    const q = m.quoted || m;
+    const mime = q.mtype || (q.msg || q).mimetype || '';
+    const json = { type: "quote", format: "png", backgroundColor: "#FFFFFF", width: 512, height: 768, scale: 2, messages: [{ entities: [], avatar: true, from: { id: 1, name: await conn.getName(m.sender), photo: { url: await conn.profilePictureUrl(m.sender, "image").catch(_ => logo) } }, text: text || '', replyMessage: text && !m.quoted ? undefined : { name: await conn.getName(q.sender), text: q.text ? q.text : (q.caption || ''), media: q.text ? undefined : { url: await (q.download ? q.download() : Promise.resolve(undefined)) }, chatId: m.chat } }] };
+    let buffer = await Quotly(json);
+    if (!buffer) throw "Error generating quote image.";
+    let stick = await sticker(buffer, false, 'Quotly', 'Quotly Pack');
+    if (!stick) throw "Error creating sticker.";
+    await conn.sendFile(m.chat, stick, 'Quotly.webp', '', m);
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 handler.help = ['qc'];
@@ -71,25 +21,13 @@ handler.tags = ['sticker'];
 handler.command = /^(qc)$/i;
 export default handler;
 
-async function Quotly(obj) {
-    let json;
-
-    try {
-        json = await axios.post("https://bot.lyo.su/quote/generate", obj, {
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
-    } catch (e) {
-        return e;
-    }
-
-    const results = json.data.result.image;
-    const buffer = Buffer.from(results, "base64");
+async function Quotly(data) {
+  try {
+    const response = await axios.post("https://qc.sazumi.moe/generate", data, { headers: { "Content-Type": "application/json" } });
+    const buffer = Buffer.from(response.data.result.image, "base64");
     return buffer;
-}
-
-function getRandomHexColor() {
-    const randomColor = () => Math.floor(Math.random() * 200).toString(16).padStart(2, "0");
-    return `#${randomColor()}${randomColor()}${randomColor()}`;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
 }
