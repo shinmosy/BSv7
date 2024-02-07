@@ -138,7 +138,7 @@ async function Quotly(a, b, c, d, reply) {
     let json;
 
     try {
-        json = await axios.post("https://bot.lyo.su/quote/generate", obj, {
+        json = await axios.post("https://qc.sazumi.moe/generate", obj, {
             headers: {
                 "Content-Type": "application/json"
             }
