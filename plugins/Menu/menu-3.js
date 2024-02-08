@@ -50,11 +50,11 @@ const defaultMenu = {
 
 %m1 *I N F O  C M D* 
 %m4 *%totalfeatures* Command
-%m4 *👥* = Group
-%m4 *🔒* = Private
-%m4 *👑* = Owner
-%m4 *⭐* = Premium
-%m4 *⛔* = Limit
+%m4 *Ⓖ* = Group
+%m4 *Ⓟ* = Private
+%m4 *Ⓞ* = Owner
+%m4 *🅟* = Premium
+%m4 *Ⓛ* = Limit
 %m3
 %readmore
 `.trimStart(),
@@ -876,11 +876,11 @@ ${v.rowId}`.trim()
                     ...help.filter(menu => menu.tags && menu.tags.includes(tag) && menu.help).map(menu => {
                         return menu.help.map(help => {
                             return body.replace(/%cmd/g, menu.prefix ? help : "%_p" + help)
-                                .replace(/%isGroup/g, menu.group ? "👥" : "")
-                                .replace(/%isPrivate/g, menu.private ? "🔒" : "")
-                                .replace(/%isOwner/g, menu.owner ? "👑" : "")
-                                .replace(/%isPremium/g, menu.premium ? "⭐" : "")
-                                .replace(/%isLimit/g, menu.limit ? "⛔" : "")
+                                .replace(/%isGroup/g, menu.group ? "Ⓖ" : "")
+                                .replace(/%isPrivate/g, menu.private ? "Ⓟ" : "")
+                                .replace(/%isOwner/g, menu.owner ? "Ⓞ" : "")
+                                .replace(/%isPremium/g, menu.premium ? "🅟" : "")
+                                .replace(/%isLimit/g, menu.limit ? "Ⓛ" : "")
                                 .trim()
                         }).join("\n")
                     }),
