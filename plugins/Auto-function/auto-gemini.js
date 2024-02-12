@@ -1,6 +1,8 @@
 import {
     fetch
 } from 'undici';
+import { Gemini } from "../../lib/ai/gemini.js"
+const gemini = new Gemini('__Secure-1PSID', 'g.a000gQhbTE4WvC7mwVL4CcWSxbt1Bde7Ady6qpt6951pafinWART4EEKmcskZMFX08uuSKwbvAACgYKAVYSAQASFQHGX2Mi1KAIQT0oz9dXZXKy0ioMBBoVAUF8yKpem3c3iJtHRDMQF3nSHOxU0076');
 
 export async function before(m) {
     try {
@@ -20,30 +22,9 @@ export async function before(m) {
         if (!quoted || !quoted.isBaileys || !chats[m.chat].gemini) return true;
 
         const msg = encodeURIComponent(text);
-        console.log(msg);
-
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDJC5a882ruaC4XL6ejY1yhgRkN-JNQKg8', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: msg
-                    }]
-                }]
-            }),
-        });
-
-        const {
-            candidates
-        } = await response.json();
-        if (candidates && candidates.length > 0) {
-            const content = candidates[0].content;
-            const reply = content.parts[0].text;
-
-            if (reply) m.reply(reply);
+        const candidates = await GoogleBard(msg);
+        if (candidates) {
+            if (candidates) m.reply(candidates);
         } else {
             const {
                 result
@@ -67,4 +48,14 @@ async function AemtGemini(query) {
     });
     const bardText = await bardRes.json();
     return bardText;
+};
+
+async function GoogleBard(query) {
+    try {
+        const responseText = await gemini.question(query);
+        return responseText.content;
+    } catch (error) {
+        console.error("An error occurred:", error.message);
+        throw error;
+    }
 };
