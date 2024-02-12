@@ -627,7 +627,7 @@ global.reloadHandler = async function(restatConn) {
 
 const pluginFolder = path.resolve(__dirname, 'plugins');
 const pluginFilter = (filename) => /\.js$/.test(filename);
-global.plugins = {};
+global.plugins = new Object();
 
 async function filesInit() {
     const CommandsFiles = glob.sync(path.resolve(pluginFolder, '**/*.js'), {
@@ -685,19 +685,22 @@ async function filesInit() {
         console.clear();
         console.log('Bot loaded plugins.');
     }
-};
+}
 
 global.reload = async (_ev, filename) => {
     if (pluginFilter(filename)) {
         let dir = path.join(pluginFolder, filename);
-        if (filename in global.plugins) {
-            if (existsSync(dir))
+        if (global.plugins.hasOwnProperty(filename)) {
+            if (existsSync(dir)) {
                 conn.logger.info(`re-require plugin '${filename}'`);
-            else {
+            } else {
                 conn.logger.warn(`deleted plugin '${filename}'`);
-                return delete global.plugins[filename];
+                delete global.plugins[filename];
+                return;
             }
-        } else conn.logger.info(`requiring new plugin '${filename}'`);
+        } else {
+            conn.logger.info(`requiring new plugin '${filename}'`);
+        }
 
         try {
             const fileContent = await readFileSync(dir, 'utf-8');
@@ -708,9 +711,9 @@ global.reload = async (_ev, filename) => {
                 allowReturnOutsideFunction: true,
                 allowImportExportEverywhere: true
             });
-            if (err)
+            if (err) {
                 conn.logger.error(`syntax error while loading '${filename}'\n${format(err)}`);
-            else {
+            } else {
                 const module = await import(`${global.__filename(dir)}?update=${Date.now()}`);
                 global.plugins[filename] = module.default || module;
             }
@@ -1028,7 +1031,44 @@ executeActions()
     .then(() => console.log("Execution completed."))
     .catch(error => console.error("Error in executeActions:", error))
     .finally(() => console.log("Finally block executed."));
+    
+global.Libs = {};
 
+const libFiles = async (dir) => {
+  try {
+    const files = readdirSync(dir, { withFileTypes: true });
+
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(dir, file.name);
+
+        const isJsFile = /\.js$/i.test(file.name);
+
+        if (file.isFile() && isJsFile) {
+          try {
+            const { default: module } = await import(filePath);
+            global.Libs[file.name] = module || (await import(filePath));
+          } catch (importErr) {
+            console.error(`Error importing ${filePath}:`, importErr);
+          }
+        } else if (file.isDirectory()) {
+          await libFiles(filePath);
+        }
+      })
+    );
+  } catch (readDirErr) {
+    console.error('Error reading directory:', readDirErr);
+    throw readDirErr;
+  }
+};
+
+libFiles(path.join(process.cwd(), 'lib'))
+  .then(() => {
+    console.log(chalk.green('JS files listed and imported successfully!'));
+  })
+  .catch((err) => {
+    console.error(chalk.red('Unhandled error:'), err);
+  });
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
