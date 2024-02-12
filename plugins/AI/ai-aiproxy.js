@@ -1,4 +1,4 @@
-import axios from "axios";
+import fetch from "node-fetch";
 
 let handler = async (m, {
     conn,
@@ -6,7 +6,7 @@ let handler = async (m, {
     usedPrefix,
     command
 }) => {
-    conn.lbbai = conn.lbbai || {};
+    conn.aiproxy = conn.aiproxy || {};
 
     const characterCategories = {
         naruto: {
@@ -171,7 +171,7 @@ let handler = async (m, {
 
     const categoryNames = Object.keys(characterCategories);
 
-    if (command === 'lbbaiset') {
+    if (command === 'aiproxyset') {
         const categoryIndex = parseInt(args[0]) - 1;
         const characterIndex = parseInt(args[1]) - 1;
 
@@ -186,32 +186,32 @@ let handler = async (m, {
         const selectedCharacter = characterNames[characterIndex];
 
         if (selectedCharacter) {
-            conn.lbbai = {
+            conn.aiproxy = {
                 name: selectedCharacter,
                 profile: characterCategories[selectedCategory][selectedCharacter],
             };
-            return m.reply(`Karakter diatur menjadi: *${conn.lbbai.name}*`);
+            return m.reply(`Karakter diatur menjadi: *${conn.aiproxy.name}*`);
         } else {
             const characterList = characterNames.map((v, i) => `*${i + 1}.* ${v}`).join('\n');
             return m.reply(`Nomor karakter tidak valid. Pilih nomor antara 1 dan ${characterNames.length}.\nContoh penggunaan:\n*${usedPrefix}${command} 1 2*\nKarakter yang tersedia:\n${characterList}`);
         }
     }
-
-    if (!conn.lbbai.name && !conn.lbbai.profile) {
-        return m.reply(`Atur karakter sebelum menggunakan.\nGunakan command *${usedPrefix}lbbaiset* untuk mengatur karakter.\nKarakter yang tersedia:\n${categoryNames.map((v, i) => `*${i + 1}.* ${v}`).join('\n')}`);
+    
+    if (!conn.aiproxy.name && !conn.aiproxy.profile) {
+        return m.reply(`Atur karakter sebelum menggunakan.\nGunakan command *${usedPrefix}aiproxyset* untuk mengatur karakter.\nKarakter yang tersedia:\n${categoryNames.map((v, i) => `*${i + 1}.* ${v}`).join('\n')}`);
     }
 
-    if (command === 'lbbai') {
+    if (command === 'aiproxy') {
         const text = args.length >= 1 ? args.join(" ") : m.quoted && m.quoted.text || "";
         if (!text) return m.reply(`Masukkan teks atau reply pesan dengan teks yang ingin diolah.\nContoh penggunaan:\n*${usedPrefix}${command} Hai, apa kabar?*`);
 
         await m.reply(wait);
 
         try {
-            const output = await chatAI(text, conn.lbbai.profile);
+            const output = await chatAI(text, conn.aiproxy.profile);
 
             if (output) {
-                await m.reply(`*${conn.lbbai.name}*\n\n${output}`);
+                await m.reply(`*${conn.aiproxy.name}*\n\n${output}`);
             } else {
                 await m.reply("Tidak ada output yang dihasilkan.");
             }
@@ -222,51 +222,30 @@ let handler = async (m, {
     }
 };
 
-handler.help = ["lbbai", "lbbaiset"];
+handler.help = ["aiproxy", "aiproxyset"];
 handler.tags = ["ai"];
-handler.command = /^(lbbai|lbbaiset)$/i;
+handler.command = /^(aiproxy|aiproxyset)$/i;
 
 export default handler;
 
-const API_URL = 'https://openai.lbbai.com/v1/chat/completions';
+async function chatAI(query, profile, model) {
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer sk-bpGbwgFrNi9GKcNd9DBAd6QwGtuecv30SU2gAreQzVO8XUrF"
+  };
 
-async function chatAI(query, profile) {
-    const payload = {
-        messages: [{
-                role: "system",
-                content: profile
-            },
-            {
-                role: "user",
-                content: query
-            },
-        ],
-        model: "gpt-3.5-turbo",
-        presence_penalty: 0,
-        stream: true,
-        temperature: 0.7,
-    };
+  const raw = JSON.stringify({
+    model: model || "gpt-3.5-turbo",
+    messages: [{ role: "system", content: profile }, { role: "user", content: query }]
+  });
 
-    try {
-        const response = await axios.post(API_URL, payload);
-        const inputString = response.data;
+  const options = { method: 'POST', headers, body: raw, redirect: 'follow' };
 
-        return inputString
-            .split('\n\n')
-            .filter(data => data.includes('data: {"id":"chatcmpl'))
-            .map(data => {
-                try {
-                    return JSON.parse(data.match(/{.*}/)?.[0]);
-                } catch (error) {
-                    console.error('Error parsing JSON:', error);
-                    return null;
-                }
-            })
-            .filter(Boolean)
-            .map(data => data.choices[0].delta.content)
-            .join('');
-    } catch (error) {
-        console.error('Error during chatAI request:', error);
-        throw error;
-    }
+  try {
+    const response = await fetch("https://api.aiproxy.io/v1/chat/completions", options);
+    const data = await response.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
