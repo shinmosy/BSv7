@@ -3,7 +3,7 @@ let handler = async (m, { conn }) => {
         const groupId = m.chat;
         const listbot = [
             { number: conn.user.jid, name: conn.user.name, groupId }, 
-            ...(conn.user.listbot || [])
+            ...(conn.user.listbot[groupId] || [])
         ].filter(bot => bot.groupId === groupId);
 
         const totalBots = listbot.length;

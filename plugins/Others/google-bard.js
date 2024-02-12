@@ -4,6 +4,9 @@ import {
 import uploadImage from "../../lib/uploadImage.js"
 import Bardie from "../../lib/ai/bardie.js"
 const bard = new Bardie();
+import { Gemini } from "../../lib/ai/gemini.js"
+const gemini = new Gemini('__Secure-1PSID', 'g.a000gQhbTE4WvC7mwVL4CcWSxbt1Bde7Ady6qpt6951pafinWART4EEKmcskZMFX08uuSKwbvAACgYKAVYSAQASFQHGX2Mi1KAIQT0oz9dXZXKy0ioMBBoVAUF8yKpem3c3iJtHRDMQF3nSHOxU0076');
+
 let handler = async (m, {
     conn,
     args,
@@ -103,42 +106,8 @@ async function AemtBardImg(query, url) {
 
 async function GoogleBard(query) {
     try {
-        const COOKIE_KEY = "awhDhy-7HHtxxRztpGSA13d3-DxQUe_b_mtNK4qzwkdnP85eNsq5RPSY5lvXLn8Wm7gKww.";
-        const psidCookie = '__Secure-1PSID=' + COOKIE_KEY;
-        const headers = {
-            "Host": "bard.google.com",
-            "X-Same-Domain": "1",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-            "Origin": "https://bard.google.com",
-            "Referer": "https://bard.google.com",
-            'Cookie': psidCookie
-        };
-
-        const bardRes = await fetch("https://bard.google.com/", {
-            method: 'get',
-            headers
-        });
-        const bardText = await bardRes.text();
-
-        const snlM0e = bardText.match(/"SNlM0e":"(.*?)"/)?.[1];
-        const blValue = bardText.match(/"cfb2h":"(.*?)"/)?.[1];
-
-        if (!snlM0e || !blValue) {
-            throw new Error("Unable to extract required values from response.");
-        }
-
-        const bodyData = `f.req=[null,"[[\\"${encodeURIComponent(query)}\\"],null,[\\"\\",\\"\\",\\"\\"]]\"]&at=${snlM0e}`;
-        const response = await fetch(`https://bard.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate?bl=${blValue}&_reqid=229189&rt=c`, {
-            method: 'post',
-            headers,
-            body: bodyData
-        });
-        const responseText = await response.text();
-
-        const answer = JSON.parse(JSON.parse(responseText.split("\n").reduce((a, b) => (a.length > b.length ? a : b), ""))[0][2])[4][0][1];
-
-        return answer.join('');
+        const responseText = await gemini.question(query);
+        return responseText.content;
     } catch (error) {
         console.error("An error occurred:", error.message);
         throw error;
