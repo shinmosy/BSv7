@@ -18,6 +18,10 @@ import {
     fetch as undiciFetch
 } from 'undici';
 import fetch from 'node-fetch';
+const {
+    Promise: makePromise
+} = await (await import("bluebird")).default;
+makePromise.config({ longStackTraces: true, warnings: true, cancellation: true, monitoring: true });
 
 async function loadConfig() {
     /*Oᴡɴᴇʀ number*/
@@ -155,6 +159,7 @@ async function loadConfig() {
     let resizeThumb = await resize(pickRandom(["https://minimalistic-wallpaper.demolab.com/?random", "https://picsum.photos/2560/1600", imageUrl, ImgMountain()]), 300, 250)
 
     global.Thumbnails = resizeThumb
+    global.Promise = makePromise
 
     let fpayment = {
         key: {
@@ -440,7 +445,7 @@ async function loadConfig() {
             },
             forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: '',
+                mediaUrl: sig,
                 mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
@@ -466,7 +471,7 @@ async function loadConfig() {
             },
             forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: '',
+                mediaUrl: sfb,
                 mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
@@ -492,7 +497,7 @@ async function loadConfig() {
             },
             forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: '',
+                mediaUrl: snh,
                 mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
@@ -518,7 +523,7 @@ async function loadConfig() {
             },
             forwardingScore: 256,
             externalAdReply: {
-                mediaUrl: '',
+                mediaUrl: syt,
                 mediaType: 2,
                 description: "Follow: " + sig,
                 title: "📍 " + Sapa() + Pagi(),
@@ -645,32 +650,33 @@ async function loadConfig() {
         }
     }
 
+global.loggedErrors = global.loggedErrors || new Set();
 
+process.on('uncaughtException', err => {
+    if (!global.loggedErrors.has(err)) {
+        console.clear();
+        console.error(chalk.bold.red.bold('Uncaught Exception:'), err);
+        global.loggedErrors.add(err);
+    }
+});
 
-    global.loggedErrors = global.loggedErrors || new Set();
+process.on('rejectionHandled', promise => {
+    if (!global.loggedErrors.has(promise)) {
+        console.clear();
+        console.error(chalk.bold.red.bold('Rejection Handled:'), promise);
+        global.loggedErrors.add(promise);
+    }
+});
 
-    process.on('uncaughtException', err => {
-        if (!global.loggedErrors.has(err)) {
-            console.error(chalk.red.bold('Uncaught Exception:'), err);
-            global.loggedErrors.add(err);
-        }
-    });
+process.on('warning', warning => console.warn(chalk.bold.yellow.bold('Warning:'), warning));
 
-    process.on('rejectionHandled', promise => {
-        if (!global.loggedErrors.has(promise)) {
-            console.error(chalk.red.bold('Rejection Handled:'), promise);
-            global.loggedErrors.add(promise);
-        }
-    });
-
-    process.on('warning', warning => console.warn(chalk.yellow.bold('Warning:'), warning));
-
-    process.on('unhandledRejection', err => {
-        if (!global.loggedErrors.has(err)) {
-            console.error(chalk.red.bold('Unhandled Rejection:'), err);
-            global.loggedErrors.add(err);
-        }
-    });
+process.on('unhandledRejection', (reason, promise) => {
+    if (!global.loggedErrors.has(reason)) {
+        console.clear();
+        console.error(chalk.bold.red.bold('Unhandled Rejection:'), reason);
+        global.loggedErrors.add(reason);
+    }
+});
 
 }
 

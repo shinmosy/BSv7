@@ -1600,6 +1600,11 @@ export async function presenceUpdate(presenceUpdate) {
         console.log("AFK - TICK");
         const username = nouser[0].split("@")[0];
         const timeAfk = new Date() - user.afk;
+        const idToRemove = nouser[0];
+    this.listAfk[id] = this.listAfk[id]
+  ? this.listAfk[id].filter(user => user.id !== idToRemove)
+  : [];
+
 
         const caption = `\n🚀 @${username} sudah tidak AFK dan sedang mengetik. 📝\n\nAlasan: ${
             user.afkReason ? user.afkReason : "Tanpa Alasan"

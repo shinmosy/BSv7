@@ -528,11 +528,11 @@ process.on('rejectionHandled', promise => {
 
 process.on('warning', warning => console.warn(chalk.bold.yellow.bold('Warning:'), warning));
 
-process.on('unhandledRejection', err => {
-    if (!global.loggedErrors.has(err)) {
+process.on('unhandledRejection', (reason, promise) => {
+    if (!global.loggedErrors.has(reason)) {
         console.clear();
-        console.error(chalk.bold.red.bold('Unhandled Rejection:'), err);
-        global.loggedErrors.add(err);
+        console.error(chalk.bold.red.bold('Unhandled Rejection:'), reason);
+        global.loggedErrors.add(reason);
     }
 });
 
