@@ -23,9 +23,9 @@ const handler = async (m, { conn, text }) => {
 
     const mediaUrl = mime && allowed.includes(mime.split('/')[0]) ? await upload.uploadPomf2(await q?.download()) || null : null;
 
-    const replyMessage = (q?.text || q?.caption || mime) && {
+    const replyMessage = (q?.text || q?.caption || q?.message?.documentMessage?.caption || mime) && {
       name: await conn.getName(q?.sender),
-      text: q?.text || q?.caption || '',
+      text: q?.text || q?.caption || q?.message?.documentMessage?.caption || '',
       chatId: parseInt(crypto.createHash('md5').update(q?.sender).digest('hex'), 16)
     };
 
@@ -45,7 +45,7 @@ const handler = async (m, { conn, text }) => {
           name: await conn.getName(m.sender),
           photo: { url: await conn.profilePictureUrl(m.sender, 'image').catch(_ => logo) }
         },
-        text: text || q?.text || q?.caption || m?.text || m?.caption || '',
+        text: text || q?.text || q?.caption || q?.message?.documentMessage?.caption || m?.text || m?.caption || m?.message?.documentMessage?.caption || '',
         replyMessage
       }]
     };
