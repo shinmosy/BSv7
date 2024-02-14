@@ -1,11 +1,36 @@
-let handler = m => m
-handler.before = async function(m, {
+let handler = async (m, {
     conn,
-    isOwner
-}) {
-    if (!m.quoted || !m.quoted.fromMe || !m.quoted.isBaileys || !/(REPORT|REQUEST|KONFIR|KONFIRM)!/i.test(m.quoted.text)) return !0
-    if (!isOwner) throw false
-    conn.reply(m.quoted.mentionedJid[0], '*Owner:* ' + m.text, m)
-    conn.reply(m.key.remoteJid, '*Pesan dari owner:* ' + m.text, m)
+    text,
+    usedPrefix,
+    command
+}) => {
+    try {
+        if (!m.quoted && !text) {
+            await conn.reply(m.chat, `Reply pesan report. Gunakan perintah ini:\n\nContoh:\n${usedPrefix + command} <reply/report>`, m)
+            return;
+        }
+        
+        let teks = `*BALASAN REPORT*\n\nDari: *@${m.sender.split`@`[0]}*\n\nPesan: ${text}\n`
+        
+        let response = await conn.reply((await conn.parseMention(m.quoted.text))[0], m.quoted ? teks + m.quoted.text : teks || m.text, null, {
+            contextInfo: {
+                mentionedJid: await conn.parseMention(m.quoted.text)
+            }
+        });
+        
+        if (response) {
+            await conn.reply(m.chat, '_Pesan terkirim ke pengirim request/report._', m)
+        }
+    } catch (error) {
+        console.error(error);
+        await conn.reply(m.chat, 'Terjadi kesalahan dalam mengirim laporan. Mohon coba lagi nanti.', m)
+    }
 }
+
+handler.help = ['balasreport'].map(v => v + ' <reply/teks>')
+handler.tags = ['info']
+handler.command = /^(balas)(reports|masalah|report?|lapor|bug[gs]|bug)$/i
+handler.limit = 10;
+handler.owner = true;
+handler.private = true;
 export default handler
