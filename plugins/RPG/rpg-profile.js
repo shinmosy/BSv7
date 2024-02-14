@@ -16,20 +16,27 @@ const checkUser = (id, adminList) => {
 const potongString = (str) => str.length <= 80 ? str : str.slice(0, 80);
 
 async function profileImage(url, name, hasilPotong) {
-    const captcha = await ImageCanvas(url, name, hasilPotong)
-    const res = await fetch(captcha)
-    const profileBuffer = Buffer.from(await res.arrayBuffer())
-    return profileBuffer;
+    try {
+        const captcha = await ImageCanvas(url, name, hasilPotong);
+        const res = await fetch(captcha);
+        const profileBuffer = Buffer.from(await res.arrayBuffer());
+        return profileBuffer;
+    } catch (error) {
+        console.error("An error occurred:", error);
+        return null;
+    }
 }
+
 
 let handler = async (m, {
     conn,
     args,
     usedPrefix,
     command,
-    groupMetadata
+    groupMetadata,
+    participants
 }) => {
-    const adminList = groupMetadata.participants; // Perbaikan ini!
+    const adminList = groupMetadata.participants || participants;
     let who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : m.fromMe ? conn.user.jid : m.sender;
     let {
         exp,
@@ -82,10 +89,10 @@ let handler = async (m, {
 *🧬 XP:* TOTAL ${exp} (${exp - min} / ${xp}) [${math <= 0 ? `Siap untuk *${usedPrefix}levelup*` : `${math} XP lagi untuk levelup`}]
 *📨 Terdaftar:* ${registered ? 'Ya (' + new Date(regTime).toLocaleString() + ')' : 'Tidak'} ${lastclaim > 0 ? '\n*⏱️Terakhir Klaim:* ' + new Date(lastclaim).toLocaleString() : ''}\n\n Ketik ${usedPrefix}inv untuk melihat Inventory RPG`;
 
-    const contohStringPanjang = `Ini adalah profil dari ${name}, seorang ${checkUser(m.sender, adminList)} di ${groupMetadata.subject}.`; // Perbaikan ini!
+    const contohStringPanjang = `Ini adalah profil dari ${name}, seorang ${checkUser(m.sender, adminList)} di ${groupMetadata.subject}.`;
     const hasilPotong = potongString(contohStringPanjang);
-    const url = await conn.profilePictureUrl(who, 'image');
-    const profileBuffer = await profileImage(url, m.name, hasilPotong);
+    const url = await conn.profilePictureUrl(who).catch(_ => './src/avatar_contact.png');
+    const profileBuffer = await profileImage(url, m.name.split("\n")[0], hasilPotong);
     try {
         await conn.sendFile(m.chat, profileBuffer, '', caption, m, null, {
             mentions: await conn.parseMention(caption)

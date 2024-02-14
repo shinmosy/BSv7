@@ -157,12 +157,12 @@ let handler = async (m, {
         }
     ];
 
-    const listMessage = ["===== List Data ====="];
+    const listMessage = ["*Inventory Yang tersedia*"];
     listData.forEach(({
         id,
         name
-    }) => listMessage.push(`${id}. ${name}`));
-    listMessage.push("=====================");
+    }) => listMessage.push(`*${id}.* Untuk menampilkan Inventory ${name}`));
+    listMessage.push(`*Contoh:* ${usedPrefix + command} 1 ( Untuk menampilkan inventory pada item 1 )`);
 
     const input = args[0];
     const num = parseInt(input);
@@ -177,7 +177,7 @@ let handler = async (m, {
         const pesan = "Pesan: Angka tidak boleh lebih dari 5!\n" + listMessage.join('\n');
         return m.reply(pesan);
     } else {
-        const pesan = `Pesan: Item ${listData[num - 1].name} dipilih`;
+        const pesan = `Menampilkan item ( ${listData[num - 1].name} )...`;
         await m.reply(pesan);
         let imgr = flaaa.getRandom()
         let who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : m.fromMe ? conn.user.jid : m.sender
@@ -355,10 +355,13 @@ Total inv: *${diamond + potion + sampah + makananpet}* item\n
 Warn: *${warn}*
 Banned: *No*
 `.trim()
-            //conn.reply(m.chat, str, m)
+            try {
             await conn.sendFile(m.chat, topImg || imgr + "INVENTORY", '', str, m, null, {
                 mentions: await conn.parseMention(str)
             })
+            } catch (error) {
+        await m.reply(str)
+    }
         } else if (args[0] == '2') {
             // Inventory 2
             let user = global.db.data.users[m.sender]
@@ -397,9 +400,13 @@ ${cooldowns}` : ''}
 *✧ nebang: ${user.lastlumber == 0 ? '✅': '❌'}*
 *✧ ngocok: ${user.lastngocok == 0 ? '✅': '❌'}*
 `.trim()
+            try {
             await conn.sendFile(m.chat, topImg || imgr + "INVENTORY", '', caption, m, null, {
                 mentions: await conn.parseMention(caption)
             })
+            } catch (error) {
+        await m.reply(caption)
+    }
         } else if (args[0] == '3') {
             // Inventory 3
             let date = global.botdate
@@ -749,9 +756,13 @@ ${readMore}
 │🗑️ *Top Sampah:* ${userssampah.indexOf(m.sender) + 1} / ${userssampah.length}
 ╰──────────━⃝┅⃝━━────────┄⸙
 `
+            try {
             await conn.sendFile(m.chat, topImg || imgr + "INVENTORY", '', str, m, null, {
                 mentions: await conn.parseMention(str)
             })
+            } catch (error) {
+        await m.reply(str)
+    }
         } else if (args[0] == '4') {
             // Inventory 4
             let health = global.db.data.users[m.sender].health
@@ -978,9 +989,13 @@ Serigala: *${serigala == 0 ? 'Tidak Punya' : '' || serigala == 1 ? 'Level 1' : '
 9.Top Sampah *${userssampah.indexOf(m.sender) + 1}* dari *${userssampah.length}*
 \n${readMore}
 `.trim()
+            try {
             await conn.sendFile(m.chat, topImg || imgr + "INVENTORY", '', str, m, null, {
                 mentions: await conn.parseMention(str)
             })
+            } catch (error) {
+        await m.reply(str)
+    }
         } else if (args[0] == '5') {
             // Inventory kolam
             let paus = global.db.data.users[m.sender].paus
@@ -1019,10 +1034,13 @@ Pancingan: *${pancingan == 0 ? 'Tidak Punya' : '' || pancingan == 1 ? 'Level 1' 
 ╰┫pancingan ${pancingan == 0 ? 'Tidak Punya' : '' || pancingan > 0 && pancingan < 5 ? `Level *${pancingan}* To level *${pancingan + 1}*\n╭┫Exp *${_pancingan}* -> *${pancingan *10000}*` : '' || pancingan == 5 ? '*Max Level*' : ''}
 ╰────────────────
 `.trim()
-
+try {
             await conn.sendFile(m.chat, topImg || imgr + "INVENTORY", '', aineh, m, null, {
                 mentions: await conn.parseMention(aineh)
             })
+            } catch (error) {
+        await m.reply(aineh)
+    }
         }
     }
 }
@@ -1035,9 +1053,14 @@ const more = String.fromCharCode(8206)
 const readMore = more.repeat(4201)
 
 async function topImage(data, img) {
-    const captcha = await ImageCanvas(img, "Top 1: " + data[0].tag, "Money: " + data[0].score)
-    const res = await fetch(captcha)
-    const topBuffer = Buffer.from(await res.arrayBuffer())
+    try {
+        const captcha = await ImageCanvas(img, "Top 1: " + data[0].tag, "Money: " + data[0].score);
+        const res = await fetch(captcha);
+        const topBuffer = Buffer.from(await res.arrayBuffer());
 
-    return topBuffer;
+        return topBuffer;
+    } catch (error) {
+        console.error("Error in topImage function:", error);
+        throw error;
+    }
 }
