@@ -170,6 +170,18 @@ let handler = async (m, {
     };
 
     const categoryNames = Object.keys(characterCategories);
+    
+    if (command === 'lbbaicreate') {
+    const text = args.length >= 1 ? args.join(" ") : m.quoted && m.quoted.text || "";
+    if (!text) return m.reply(`Masukkan teks atau reply pesan dengan teks yang ingin diolah.\nContoh penggunaan:\n*${usedPrefix}${command} Hai, apa kabar?*`);
+    if (text) {
+    conn.lbbai = {
+                name: "Custom By: " + m.name,
+                profile: text
+            };
+            return m.reply(`Karakter diatur menjadi: *${conn.lbbai.name}*`);
+            };
+    }
 
     if (command === 'lbbaiset') {
         const categoryIndex = parseInt(args[0]) - 1;
@@ -222,13 +234,13 @@ let handler = async (m, {
     }
 };
 
-handler.help = ["lbbai", "lbbaiset"];
+handler.help = ["lbbai", "lbbaiset", "lbbaicreate"];
 handler.tags = ["ai"];
-handler.command = /^(lbbai|lbbaiset)$/i;
+handler.command = /^(lbbai|lbbaiset|lbbaicreate)$/i;
 
 export default handler;
 
-const API_URL = 'https://openai.lbbai.com/v1/chat/completions';
+const API_URL = 'https://openai.lbbai.cc/v1/chat/completions';
 
 async function chatAI(query, profile) {
     const payload = {
