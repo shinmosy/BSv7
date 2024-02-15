@@ -66,7 +66,7 @@
         "deepai": "*",
         "deobfuscator": "*",
         "dhn-api": "*",
-        "didyoumean": "*",
+        "didyoumean3": "*",
         "emoji-api": "*",
         "express": "*",
         "fake-useragent": "*",

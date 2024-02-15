@@ -728,18 +728,17 @@ global.reload = async (_ev, filename) => {
 };
 
 async function FileEv(type, file) {
-    console.log(file);
     try {
         switch (type) {
             case 'delete':
-                delete global.plugins[file];
+                delete global.plugins[path.resolve(global.__filename(file))];
                 break;
             case 'change':
             case 'add':
                 const module = await import(
                     `${global.__filename(file)}?update=${Date.now()}`
                 );
-                global.plugins[file] = module.default || module;
+                global.plugins[path.resolve(global.__filename(file))] = module.default || module;
                 break;
         }
     } catch (e) {
