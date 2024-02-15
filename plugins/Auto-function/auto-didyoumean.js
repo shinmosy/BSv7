@@ -18,7 +18,7 @@ export async function before(m, { match, usedPrefix }) {
       const { winner, matched } = didyoumean3(noPrefix, help);
 
       if (winner !== noPrefix) {
-        const filteredMatches = matched.filter(item => item.target !== winner && item.score < 3);
+        const filteredMatches = matched.filter(item => item.score < 4);
 
         const groupedByScore = filteredMatches.reduce((acc, item) => {
           const score = 10 - item.score;
@@ -31,15 +31,15 @@ export async function before(m, { match, usedPrefix }) {
 
         const resultText = Object.entries(groupedByScore)
   .sort(([scoreA], [scoreB]) => scoreB - scoreA)
-  .slice(0, 5)
+  .slice(0, 4)
   .filter(([score, suggestions]) => score.trim() && suggestions.length > 0)
   .map(([score, suggestions], index) => {
     const adjustedScore = Math.max(1, Math.min(10, 10 - parseInt(score)));
     const scoreString = `${adjustedScore}`;
-    const formattedSuggestions = suggestions.slice(0, 5).map(suggestion => `   - ${usedPrefix + suggestion}`).join('\n');
+    const formattedSuggestions = suggestions.slice(0, 4).map(suggestion => `   - ${usedPrefix + suggestion}`).join('\n');
     return `*${index + 1}.* Similarity: *${parseInt(Number(10 - scoreString))}/10*\n${formattedSuggestions}`;
   })
-  .join('\n');
+  .join('\n\n');
 
         if (resultText) {
           const mentionedJid = m.mentionedJid?.[0] ?? (m.fromMe ? this.user.jid : m.sender);
