@@ -1,35 +1,62 @@
-import didyoumean from 'didyoumean'
-import similarity from 'similarity'
+import { didyoumean3 } from 'didyoumean3';
 
-export async function before(m, {
-    match,
-    usedPrefix
-}) {
+const randomEmojis = ['🤔', '😊', '🤩', '😜', '🧐', '😅'];
+
+const getRandomEmoji = () => randomEmojis[Math.floor(Math.random() * randomEmojis.length)];
+
+export async function before(m, { match, usedPrefix }) {
+  try {
     if ((usedPrefix = (match[0] || '')[0])) {
-        let noPrefix = m.text.replace(usedPrefix, '')
-        let args = noPrefix.trim().split` `.slice(1)
-        let help = Object.values(plugins).filter(v => v.help && !v.disabled).map(v => v.help).flat(1)
-        if (help.includes(noPrefix)) return
-        let mean = didyoumean(noPrefix, help)
-        if (!mean) return
-        let sim = similarity(noPrefix, mean)
-        if (sim === 1 || mean.toLowerCase() === noPrefix.toLowerCase()) return
-        let who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : m.fromMe ? this.user.jid : m.sender
-        let name = await this.getName(who)
-        let emoji = '🤔'
-        if (sim >= 0.75) {
-            emoji = '😄'
-        } else if (sim >= 0.5) {
-            emoji = '😅'
-        }
-        let caption = `👋 Hai ${name.split('\n')[0]} (@${who.split("@")[0].split('\n')[0]})\n\nApakah yang kamu maksud:\n*${usedPrefix + mean}*\n\nSimilarity: *${Number(sim * 100).toFixed(2)}%* ${emoji}`
-        await this.sendMessage(m.chat, {
-            text: caption,
-            mentions: await this.parseMention(caption)
-        }, {
+      const noPrefix = m.text.replace(usedPrefix, '').trim().toLowerCase();
+
+      const helpPromises = Object.values(plugins)
+        .filter(v => v.help && !v.disabled)
+        .map(async v => v.help.map(entry => entry.trim().split(' ')[0].toLowerCase()))
+
+      const help = await Promise.all(helpPromises).then(arrays => arrays.flat());
+
+      const { winner, matched } = didyoumean3(noPrefix, help);
+
+      if (winner !== noPrefix) {
+        const filteredMatches = matched.filter(item => item.target !== winner && item.score < 3);
+
+        const groupedByScore = filteredMatches.reduce((acc, item) => {
+          const score = 10 - item.score;
+          const target = item.target.trim();
+          const scoreKey = Math.max(1, Math.min(10, score));
+
+          acc[scoreKey] = acc[scoreKey] ? [...acc[scoreKey], target] : [target];
+          return acc;
+        }, {});
+
+        const resultText = Object.entries(groupedByScore)
+  .sort(([scoreA], [scoreB]) => scoreB - scoreA)
+  .slice(0, 5)
+  .filter(([score, suggestions]) => score.trim() && suggestions.length > 0)
+  .map(([score, suggestions], index) => {
+    const adjustedScore = Math.max(1, Math.min(10, 10 - parseInt(score)));
+    const scoreString = `${adjustedScore}`;
+    const formattedSuggestions = suggestions.slice(0, 5).map(suggestion => `   - ${usedPrefix + suggestion}`).join('\n');
+    return `*${index + 1}.* Similarity: *${parseInt(Number(10 - scoreString))}/10*\n${formattedSuggestions}`;
+  })
+  .join('\n');
+
+        if (resultText) {
+          const mentionedJid = m.mentionedJid?.[0] ?? (m.fromMe ? this.user.jid : m.sender);
+          const senderName = (await this.getName(mentionedJid)).split('\n')[0];
+
+          await this.sendMessage(m.chat, {
+            text: `👋 Hai ${senderName} @${mentionedJid.split('@')[0]} !\n*Apakah maksudmu:* ${getRandomEmoji()}\n${resultText}`,
+            mentions: [mentionedJid]
+          }, {
             quoted: m
-        });
+          });
+        }
+      }
     }
+  } catch (error) {
+    console.error("Terjadi kesalahan:", error);
+  }
 }
 
-export const disabled = false
+export const disabled = false;
