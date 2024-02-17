@@ -175,11 +175,12 @@ let handler = async (m, {
     const text = args.length >= 1 ? args.join(" ") : m.quoted && m.quoted.text || "";
     if (!text) return m.reply(`Masukkan teks atau reply pesan dengan teks yang ingin diolah.\nContoh penggunaan:\n*${usedPrefix}${command} Hai, apa kabar?*`);
     if (text) {
-    conn.lbbai = {
-                name: "Custom By: " + m.name,
-                profile: text
-            };
-            return m.reply(`Karakter diatur menjadi: *${conn.lbbai.name}*`);
+    conn.lbbai[m.chat] = {
+    ...conn.lbbai[m.chat],
+    name: m.name,
+    profile: [...(conn.lbbai[m.chat]?.profile || []), text]
+};
+            return m.reply(`Karakter diatur menjadi: *${conn.lbbai[m.chat].name}*`);
             };
     }
 
@@ -198,32 +199,33 @@ let handler = async (m, {
         const selectedCharacter = characterNames[characterIndex];
 
         if (selectedCharacter) {
-            conn.lbbai = {
-                name: selectedCharacter,
-                profile: characterCategories[selectedCategory][selectedCharacter],
-            };
-            return m.reply(`Karakter diatur menjadi: *${conn.lbbai.name}*`);
+            conn.lbbai[m.chat] = {
+    ...conn.lbbai[m.chat],
+    name: selectedCharacter,
+    profile: [characterCategories[selectedCategory][selectedCharacter]]
+};
+            return m.reply(`Karakter diatur menjadi: *${conn.lbbai[m.chat].name}*`);
         } else {
             const characterList = characterNames.map((v, i) => `*${i + 1}.* ${v}`).join('\n');
             return m.reply(`Nomor karakter tidak valid. Pilih nomor antara 1 dan ${characterNames.length}.\nContoh penggunaan:\n*${usedPrefix}${command} 1 2*\nKarakter yang tersedia:\n${characterList}`);
         }
     }
 
-    if (!conn.lbbai.name && !conn.lbbai.profile) {
+    if (!conn.lbbai[m.chat].name && !conn.lbbai[m.chat].profile) {
         return m.reply(`Atur karakter sebelum menggunakan.\nGunakan command *${usedPrefix}lbbaiset* untuk mengatur karakter.\nKarakter yang tersedia:\n${categoryNames.map((v, i) => `*${i + 1}.* ${v}`).join('\n')}`);
     }
 
     if (command === 'lbbai') {
         const text = args.length >= 1 ? args.join(" ") : m.quoted && m.quoted.text || "";
         if (!text) return m.reply(`Masukkan teks atau reply pesan dengan teks yang ingin diolah.\nContoh penggunaan:\n*${usedPrefix}${command} Hai, apa kabar?*`);
-
         await m.reply(wait);
 
         try {
-            const output = await chatAI(text, conn.lbbai.profile);
+        const summary = await chatAI(conn.lbbai[m.chat]?.profile.join(' '), "Perpendek kalimat yang ada dan perbaiki kata katanya agar lebih simpel dan pendek.")
+            const output = await chatAI(text, summary);
 
             if (output) {
-                await m.reply(`*${conn.lbbai.name}*\n\n${output}`);
+                await m.reply(`*${conn.lbbai[m.chat].name}*\n\n${output}`);
             } else {
                 await m.reply("Tidak ada output yang dihasilkan.");
             }
