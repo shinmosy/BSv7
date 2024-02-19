@@ -14,10 +14,10 @@ const {
 } = await (await import("@whiskeysockets/baileys")).default;
 
 import Jimp from 'jimp';
-import {
-    fetch as undiciFetch
-} from 'undici';
 import fetch from 'node-fetch';
+import axios from 'axios';
+import { fetch as undiciFetch } from 'undici';
+import got from 'got';
 const {
     Promise: makePromise
 } = await (await import("bluebird")).default;
@@ -1372,43 +1372,81 @@ function businessOwnerJid() {
 }
 
 async function resize(url, width, height, referer = null) {
-    try {
-        const fetchOptions = {
-            redirect: 'follow',
-            headers: {},
-        };
-
-        if (referer) {
-            fetchOptions.headers['Referer'] = referer;
-        }
-
-        const response = await fetch(url, fetchOptions);
-
-        if (response.ok) {
-            const finalUrl = response.url;
-            const arrayBuffer = await response.arrayBuffer();
-            return await Jimp.read(Buffer.from(arrayBuffer)).then(image => image.resize(width, height).getBufferAsync(Jimp.MIME_JPEG));
-        } else {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-    } catch (error) {
-        console.error('Error:', error.message);
-
         try {
-            const undiciFetchOptions = {
-                redirect: 'follow',
-                headers: {}
-            };
-
-            if (referer) {
-                undiciFetchOptions.headers['Referer'] = referer;
-            }
-
-            const arrayBuffer = await undiciFetch(url, undiciFetchOptions).then(response => response.arrayBuffer());
+            const arrayBuffer = await getDataBuffer(url, null);
             return await Jimp.read(Buffer.from(arrayBuffer)).then(image => image.resize(width, height).getBufferAsync(Jimp.MIME_JPEG));
         } catch (retryError) {
             console.error('Retry Error:', retryError.message);
             return Buffer.from([]);
+        }
+    }
+
+async function getDataBuffer(url, referer = null) {
+    try {
+        const fetchOptions = {
+            redirect: 'follow',
+            headers: referer ? {
+                'Referer': referer
+            } : {}
+        };
+
+        // Try using node-fetch
+        const response = await fetch(url, fetchOptions);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const responseData = await response.arrayBuffer() || await response.text();
+
+        return Buffer.from(responseData);
+    } catch (fetchError) {
+        console.error('Fetch Error:', fetchError.message);
+
+        try {
+            // Try using got
+            const gotResponse = await got(url, { headers: referer ? { 'Referer': referer } : {} });
+            return Buffer.from(gotResponse.body);
+        } catch (gotError) {
+            console.error('Got Error:', gotError.message);
+
+            try {
+                const undiciFetchOptions = {
+                    redirect: 'follow',
+                    headers: referer ? {
+                        'Referer': referer
+                    } : {}
+                };
+
+                // Try using undici
+                const undiciResponse = await undiciFetch(url, undiciFetchOptions);
+
+                if (!undiciResponse.ok) {
+                    throw new Error(`HTTP error! Status: ${undiciResponse.statusCode}`);
+                }
+
+                const undiciResponseBody = await undiciResponse.arrayBuffer() || await undiciResponse.text();
+
+                return Buffer.from(undiciResponseBody);
+            } catch (undiciError) {
+                console.error('Undici Error:', undiciError.message);
+
+                try {
+                    const axiosConfig = {
+                        headers: referer ? {
+                            'Referer': referer
+                        } : {}
+                    };
+
+                    // Try using axios
+                    const axiosResponse = await axios.get(url, axiosConfig);
+
+                    return Buffer.from(axiosResponse.data);
+                } catch (axiosError) {
+                    console.error('Axios Error:', axiosError.message);
+                    return Buffer.from([]);
+                }
+            }
         }
     }
 }

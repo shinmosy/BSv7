@@ -130,7 +130,7 @@ global.API = (name, path = '/', query = {}, apikeyqueryname) => (name in global.
     } : {})
 })) : '')
 global.timestamp = {
-    start: new Date
+    start: new Date()
 }
 
 const __dirname = global.__dirname(import.meta.url)
@@ -683,7 +683,7 @@ async function filesInit() {
         );
     } catch (e) {
         console.clear();
-        console.log('Bot loaded plugins.');
+        console.log('Error loaded plugins.');
     }
 }
 
@@ -989,85 +989,57 @@ async function clearSessions(folder = './TaylorSession') {
     }
 }
 
-const actions = [{
-        func: clearTmp,
-        message: 'Penyegaran Tempat Penyimpanan Berhasil ✅',
-        color: 'green'
-    },
-    {
-        func: clearSessions,
-        message: 'Clear Sessions Berhasil ✅',
-        color: 'green'
-    },
-    {
-        func: loadConfig,
-        message: 'Sukses Re-load config. ✅',
-        color: 'green'
-    },
+const actions = [
+    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
+    { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
+    { func: loadConfig, message: 'Sukses Re-load config. ✅', color: 'green' },
 ];
 
 async function executeActions() {
-    do {
-        for (const {
-                func,
-                message,
-                color
-            }
-            of actions) {
-            try {
-                await func();
-                await delay(3000);
-                console.log(chalk.bold[color](message));
-            } catch (error) {
-                console.error(chalk.bold.red(`Error executing action: ${error.message}`));
-                throw error;
-            }
+    while (true) {
+        for (const { func, message, color } of actions) {
+            try { await func(); console.log(chalk.bold[color](message)); await delay(3000); }
+            catch (error) { console.error(chalk.bold.red(`Error: ${error.message}`)); }
         }
-        await new Promise(resolve => setTimeout(resolve, 3600000));
-    } while (true);
+        await delay(3600000);
+    }
 }
-executeActions()
-    .then(() => console.log("Execution completed."))
-    .catch(error => console.error("Error in executeActions:", error))
-    .finally(() => console.log("Finally block executed."));
-    
+
+executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error)).finally(() => console.log("Finally block executed."));
+
 global.Libs = {};
 
-const libFiles = async (dir) => {
+const libFiles = async (dir, currentPath = '') => {
   try {
     const files = readdirSync(dir, { withFileTypes: true });
 
-    await Promise.all(
-      files.map(async (file) => {
-        const filePath = path.join(dir, file.name);
+    await Promise.all(files.map(async (file) => {
+      const filePath = path.join(dir, file.name);
+      const relativePath = path.join(currentPath, file.name);
 
-        const isJsFile = /\.js$/i.test(file.name);
-
-        if (file.isFile() && isJsFile) {
-          try {
-            const { default: module } = await import(filePath);
-            global.Libs[file.name] = module || (await import(filePath));
-          } catch (importErr) {
-            console.error(`Error importing ${filePath}:`, importErr);
-          }
-        } else if (file.isDirectory()) {
-          await libFiles(filePath);
+      if (file.isFile() && /\.js$/i.test(file.name)) {
+        try {
+          const { default: module } = await import(filePath);
+          setNestedObject(global.Libs, relativePath, module || (await import(filePath)));
+        } catch (importErr) {
+          console.error(`Error importing ${relativePath}:`, importErr);
         }
-      })
-    );
+      } else if (file.isDirectory()) {
+        await libFiles(filePath, relativePath);
+      }
+    }));
   } catch (readDirErr) {
     console.error('Error reading directory:', readDirErr);
     throw readDirErr;
   }
 };
 
+const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) =>
+  acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
+
 libFiles(path.join(process.cwd(), 'lib'))
-  .then(() => {
-    console.log(chalk.green('JS files listed and imported successfully!'));
-  })
-  .catch((err) => {
-    console.error(chalk.red('Unhandled error:'), err);
-  });
+  .then(() => console.log(chalk.green('JS files listed and imported successfully!')))
+  .catch((err) => console.error(chalk.red('Unhandled error:'), err));
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
