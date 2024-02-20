@@ -11,19 +11,18 @@
     },
     "scripts": {
         "build": "npm install",
-        "start": "NODE_ENV=production node index.js",
-        "dev": "NODE_ENV=development nodemon index.js",
+        "start": "node index.js --pairing-code",
+        "dev": "nodemon index.js",
         "test": "node test.js",
         "test2": "nodemon index.js"
     },
     "keywords": [
-        "termux-whatsapp-bot",
         "whatsapp-bot",
-        "whatsapp",
+        "rpg-bot-whatsapp",
         "js-whatsapp",
         "whatsapp",
-        "Games-wabot",
-        "wabot-aq",
+        "games-wabot",
+        "whiskeysockets",
         "multi-device",
         "MD",
         "baileys-md"
