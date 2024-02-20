@@ -55,7 +55,7 @@ export async function before(m, { match, usedPrefix }) {
 
       const mentionedJid = m.mentionedJid?.[0] ?? (m.fromMe ? this.user.jid : m.sender);
       const senderName = (await this.getName(mentionedJid)).split('\n')[0];
-      groupedMatches.size > 0 && !filteredMatches.some(item => item.target === noPrefix) && await this.sendMessage(m.chat, {
+      groupedMatches.size > 0 && !filteredMatches.some(item => item.target === noPrefix) && !m.isCommand && await this.sendMessage(m.chat, {
         text: `👋 Hai ${senderName} @${mentionedJid.split('@')[0]} !\n*Apakah maksudmu:* ${getRandomEmoji(parseInt(Array.from(groupedMatches.values())[0].score))}\n${resultText}`,
         mentions: [mentionedJid]
       }, { quoted: m });
