@@ -1,56 +1,63 @@
-let handler = async (m, {
-    conn,
-    text,
-    command,
-    isBotAdmin
-}) => {
-    if (!m.quoted) throw "Reply pesan yang ingin diedit"
-    if (!text) throw "Tidak ada teks"
-    if (!m.quoted.isBaileys) throw "Pesan tidak dikirim oleh bot!"
+let handler = async (m, { conn, args, command, isBotAdmin }) => {
+    let q = m.quoted || m || null;
+    
+    if (!args && !q) {
+        return m.reply("Error: Please provide text to edit or reply to a message.");
+    }
 
-    try {
-        await conn.sendMessage(m.chat, {
-            text: text,
-            edit: m.quoted.vM.key
-        })
-    } catch (e) {
-        try {
-            let edit = m.quoted.sender ? m.message.extendedTextMessage.contextInfo.participant : m.key.participant
-            let bang = m.quoted.id ? m.message.extendedTextMessage.contextInfo.stanzaId : m.key.id
+    let text = args?.length >= 1 ? args.join(' ') : m.text || q?.text || null;
+    
+    if (!text) {
+        return m.reply("Error: Edited text cannot be empty.");
+    }
+
+    let editKey =
+        q?.vM?.key ||
+        q?.key ||
+        (m.getQuotedObj()?.key) ||
+        (q?.fakeObj?.key) ||
+        m.key;
+
+    let editMessage = {
+        text: text,
+        edit: editKey
+    };
+
+    if (
+        checkTrue(await conn.sendMessage(m.chat, editMessage)) ||
+        checkTrue(
             await conn.sendMessage(m.chat, {
                 text: text,
                 edit: {
-                    remoteJid: m.chat,
+                    remoteJid: (editKey?.remoteJid || m.chat),
                     fromMe: false,
-                    id: bang,
-                    participant: edit
+                    id: (editKey?.id || q?.id || m.key.id),
+                    participant: (q?.sender || editKey?.remoteJid || m.key.remoteJid)
                 }
             })
-
-        } catch (e) {
-            try {
-                await conn.relayMessage(m.chat, {
-                    protocolMessage: {
-                        key: m.quoted.vM.key,
-                        type: 14,
-                        editedMessage: {
-                            conversation: text
-                        }
+        ) ||
+        checkTrue(
+            await conn.relayMessage(m.chat, {
+                protocolMessage: {
+                    key: editKey,
+                    type: 14,
+                    editedMessage: {
+                        conversation: text
                     }
-                }, {})
-
-            } catch (e) {
-                await m.reply(eror)
-            }
-        }
+                }
+            }, { messageId: (editKey?.id || q?.id || m.key.id) })
+        )
+    ) {
+        return m.reply("Error in editing the message");
     }
-}
-handler.help = ["edit teks ( Reply Pesan )"]
-handler.tags = ["main"]
-handler.command = ["edit"]
-handler.premium = true
+};
 
-export default handler
+handler.help = ["edit teks ( Reply Pesan )"];
+handler.tags = ["main"];
+handler.command = ["edit"];
+handler.premium = true;
+
+export default handler;
 
 function checkTrue(input) {
     return input === false;
