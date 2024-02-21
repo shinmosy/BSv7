@@ -195,7 +195,7 @@ if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     border-radius: 10px;
     text-align: left;
 `]);
-    console.log(chalk.blue.bold(`\n🚩 ${chalk.blue('Example:')} ${chalk.yellow('node . --pairing-code')}`));
+    console.log(chalk.bold.blue(`\n🚩 ${chalk.bold.blue('Example:')} ${chalk.bold.yellow('node . --pairing-code')}`));
 
     process.exit(1);
 }
@@ -841,12 +841,12 @@ const mainSpinner = ora({
 }).start();
 
 const executeStep = async (step, index) => {
-    mainSpinner.text = chalk.bold.yellow(`Proses langkah ${index + 1} sedang berlangsung...`);
+    mainSpinner.text = chalk.bold.yellow(`Proses ${index + 1} ${step.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim().toLowerCase()} sedang berlangsung...`);
     await delay(index * delayBetweenSteps);
 
     try {
         const result = await step();
-        mainSpinner.succeed(chalk.bold.green(`Langkah ${index + 1} berhasil diselesaikan!`));
+        mainSpinner.succeed(chalk.bold.green(`Proses ${index + 1} ${step.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim().toLowerCase()} berhasil diselesaikan!`));
         return result;
     } catch (error) {
         mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
@@ -855,14 +855,14 @@ const executeStep = async (step, index) => {
     }
 };
 
-Promise.all(steps.map(executeStep))
+await Promise.all(steps.map(executeStep))
     .then(results => {
         results.forEach(result => {
             if (typeof result === 'string') {
                 console.error(chalk.bold.red(result));
             }
         });
-        mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
+        mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!'));
     })
     .catch(error => {
         mainSpinner.fail(chalk.bold.red(`${error}`));
@@ -874,7 +874,7 @@ Promise.all(steps.map(executeStep))
 async function reloadHandlerStep() {
     try {
         await global.reloadHandler();
-        console.log(chalk.bold.green('reloadHandlerStep selesai.'));
+        console.log(chalk.bold.green('Reload Handler Step selesai.'));
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
     }
@@ -883,7 +883,7 @@ async function reloadHandlerStep() {
 async function watchPluginStep() {
     try {
         await watch(pluginFolder, global.reload);
-        console.log(chalk.bold.green('watchPluginStep selesai.'));
+        console.log(chalk.bold.green('Watch Plugin Step selesai.'));
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in watch plugin step: ${error}`));
     }
@@ -928,7 +928,7 @@ async function _quickTest() {
 
         Object.freeze(global.support = support);
     } catch (error) {
-        console.error(`Error in _quickTest: ${error.message}`);
+        console.error(`Error in Quick Test: ${error.message}`);
     }
 }
 
@@ -984,7 +984,7 @@ async function clearSessions(folder = './TaylorSession') {
         }));
         return deletedFiles.filter((file) => file !== null);
     } catch (err) {
-        console.error(`Error in clearSessions: ${err.message}`);
+        console.error(`Error in Clear Sessions: ${err.message}`);
         return [];
     }
 }
@@ -1038,8 +1038,8 @@ const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, 
   acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
 
 libFiles(path.join(process.cwd(), 'lib'))
-  .then(() => console.log(chalk.green('JS files listed and imported successfully!')))
-  .catch((err) => console.error(chalk.red('Unhandled error:'), err));
+  .then(() => console.log(chalk.bold.green('Created Global Libs Successfully!')))
+  .catch((err) => console.error(chalk.bold.red('Unhandled error:'), err));
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
