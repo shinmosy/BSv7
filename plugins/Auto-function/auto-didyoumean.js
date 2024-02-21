@@ -44,7 +44,7 @@ export async function before(m, { match, usedPrefix }) {
       }));
 
       const resultText = (await Promise.all(Array.from(groupedMatches.values())
-        .sort((a, b) => a.score - b.score)
+        .sort((a, b) => b.score - a.score)
         .slice(0, 5)
         .map(async (group, index) => {
           const sortedTargets = (await Promise.all(group.targets.slice(0, 5).sort((a, b) => a.localeCompare(b)).map(async target => `   - ${usedPrefix + target}`))).join('\n');
@@ -54,12 +54,21 @@ export async function before(m, { match, usedPrefix }) {
       const mentionedJid = m.mentionedJid?.[0] ?? (m.fromMe ? this.user.jid : m.sender);
       const senderName = (await this.getName(mentionedJid)).split('\n')[0];
 
-      groupedMatches.size > 0 && !filteredMatches.some(item => item.target === noPrefix) && !m.isCommand && !help.some(item => item === noPrefix) && await this.sendMessage(m.chat, {
-        text: `👋 Hai ${senderName} @${mentionedJid.split('@')[0]} !\n*Apakah maksudmu:* ${getRandomEmoji(parseInt(Array.from(groupedMatches.values())[0].score))}\n\n${resultText}`,
-        mentions: [mentionedJid]
-      }, { quoted: m });
+      const shouldSendMessage = (
+  groupedMatches.size > 0 &&
+  !filteredMatches.some(item => item.target === noPrefix) &&
+  !m.isCommand &&
+  !help.some(item => item === noPrefix) &&
+  !['=>', '>', '$'].some(char => q.text.startsWith(char))
+);
 
-      groupedMatches.clear();
+if (shouldSendMessage) {
+  await this.sendMessage(m.chat, {
+    text: `👋 Hai ${senderName} @${mentionedJid.split('@')[0]} !\n*Apakah maksudmu:* ${getRandomEmoji(parseInt(Array.from(groupedMatches.values())[0].score))}\n\n${resultText}`,
+    mentions: [mentionedJid]
+  }, { quoted: m });
+  groupedMatches.clear();
+}
     }
   } catch (error) {
     console.error("Terjadi kesalahan:", error);
