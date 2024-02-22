@@ -231,7 +231,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
 }
 
 var storeFile = `${Helper.opts._[0] || 'data'}.store.json`
-global.store.readFromFile(storeFile)
+store.readFromFile(storeFile)
 
 const connectionOptions = {
     ...(!pairingCode && !useMobile && !useQr && {
@@ -273,9 +273,9 @@ const connectionOptions = {
     browser: ["Ubuntu", "Chrome", "20.0.04"],
     version,
     getMessage: async (key) => {
-        if (global.store) {
+        if (store) {
             let jid = jidNormalizedUser(key.remoteJid)
-            let msg = await global.store.loadMessage(jid, key.id)
+            let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
         return proto.Message.fromObject({});
@@ -291,7 +291,7 @@ const connectionOptions = {
 };
 
 global.conn = makeWaSocket(connectionOptions);
-global.store.bind(conn.ev)
+store.bind(conn.ev)
 conn.isInit = false
 
 if (pairingCode && !conn.authState.creds.registered) {
@@ -841,17 +841,17 @@ const mainSpinner = ora({
 }).start();
 
 const executeStep = async (step, index) => {
-    mainSpinner.text = chalk.bold.yellow(`Proses ${index + 1} ${step.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim().toLowerCase()} sedang berlangsung...`);
+    mainSpinner.text = chalk.bold.yellow(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} sedang berlangsung...`);
     await delay(index * delayBetweenSteps);
 
     try {
         const result = await step();
-        mainSpinner.succeed(chalk.bold.green(`Proses ${index + 1} ${step.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim().toLowerCase()} berhasil diselesaikan!`));
+        mainSpinner.succeed(chalk.bold.green(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!`));
         return result;
     } catch (error) {
-        mainSpinner.fail(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
-        console.error(chalk.bold.red(`Error in step ${index + 1}: ${error}`));
-        return `Error in step ${index + 1}: ${error}`;
+        mainSpinner.fail(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
+        console.error(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
+        return `Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`;
     }
 };
 
@@ -964,7 +964,8 @@ async function clearTmp() {
     }
 }
 
-async function clearSessions(folder = './TaylorSession') {
+async function clearSessions(folder) {
+folder = folder || './' + authFile;
     try {
         const filenames = await readdirSync(folder);
         const deletedFiles = await Promise.all(filenames.map(async (file) => {
@@ -1020,7 +1021,7 @@ const libFiles = async (dir, currentPath = '') => {
       if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
           const { default: module } = await import(filePath);
-          setNestedObject(global.Libs, relativePath, module || (await import(filePath)));
+          setNestedObject(global.Libs, relativePath.slice(0, -3), module || (await import(filePath)));
         } catch (importErr) {
           console.error(`Error importing ${relativePath}:`, importErr);
         }
