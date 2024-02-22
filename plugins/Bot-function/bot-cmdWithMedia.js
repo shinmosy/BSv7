@@ -15,6 +15,7 @@ export async function all(m, chatUpdate) {
         text,
         mentionedJid
     } = hash
+    if (!text) return
     let messages = await generateWAMessage(m.chat, {
         text: text,
         mentions: mentionedJid
