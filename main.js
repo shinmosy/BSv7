@@ -169,8 +169,6 @@ global.loadDatabase = async function loadDatabase() {
     global.db.chain = chain(global.db.data)
 }
 
-global.authFile = "TaylorSession";
-
 const {
     version,
     isLatest
@@ -178,7 +176,6 @@ const {
 console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
-    console.clear();
     const title = "OPTIONS";
     const message = ["--pairing-code", "--mobile", "--qr", "--singleauth"];
     const maxOptionWidth = 20;
@@ -200,8 +197,8 @@ if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     process.exit(1);
 }
 
-var authFolder = storeSystem.fixFileName(`${Helper.opts._[0] || ''}TaylorSession`)
-var authFile = `${Helper.opts._[0] || 'session'}.data.json`
+global.authFolder = storeSystem.fixFileName(`${Helper.opts._[0] || ''}TaylorSession`)
+global.authFile = `${Helper.opts._[0] || 'session'}.data.json`
 
 var [
     isCredsExist,
@@ -295,7 +292,6 @@ store.bind(conn.ev)
 conn.isInit = false
 
 if (pairingCode && !conn.authState.creds.registered) {
-    console.clear();
     if (useMobile) conn.logger.error('\nCannot use pairing code with mobile api')
     console.log(chalk.bold.cyan('╭──────────────────────────────────────···'));
     console.log(`📨 ${chalk.bold.redBright('Please type your WhatsApp number')}:`);
@@ -327,7 +323,6 @@ if (pairingCode && !conn.authState.creds.registered) {
 }
 
 if (useMobile && !conn.authState.creds.registered) {
-    console.clear();
     const {
         registration
     } = conn.authState.creds || {
@@ -381,7 +376,6 @@ if (useMobile && !conn.authState.creds.registered) {
     }
 
     async function askOTP() {
-        console.clear();
         console.log(chalk.bold.cyan('╭──────────────────────────────────────···'));
         console.log(`📨 ${chalk.bold.redBright('What method do you want to use? "sms" or "voice"')}`);
         console.log(chalk.bold.cyan('├──────────────────────────────────────···'));
@@ -436,7 +430,6 @@ async function connectionUpdate(update) {
         console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
 
         if (global.connectionAttempts >= 5) {
-            console.clear();
             console.log(chalk.bold.redBright('Tidak bisa terhubung. Kemungkinan akun Anda di banned.'));
             process.exit(1);
         }
@@ -475,44 +468,36 @@ async function connectionUpdate(update) {
                 }
             );
         } catch (e) {
-            console.clear();
             console.log('Bot is now active.');
         }
-        console.clear();
         conn.logger.info(chalk.bold.yellow('\n🚩 R E A D Y'));
     }
     if (isOnline == true) {
-        console.clear();
         conn.logger.info(chalk.bold.green('Status Aktif'));
     }
     if (isOnline == false) {
-        console.clear();
         conn.logger.error(chalk.bold.red('Status Mati'));
     }
     if (receivedPendingNotifications) {
-        console.clear();
         conn.logger.warn(chalk.bold.yellow('Menunggu Pesan Baru'));
     }
 
     if (!pairingCode && !useMobile && qr !== 0 && qr !== undefined && connection === 'close') {
-        console.clear();
-        conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${global.authFile} dan pindai ulang kode QR`));
+        conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
         process.exit(1);
     }
 
     if (!pairingCode && !useMobile && useQr && qr !== 0 && qr !== undefined && connection === 'close') {
-        console.clear();
         conn.logger.info(chalk.bold.yellow(`\n🚩ㅤPindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
         process.exit(1);
     }
 
 }
 
-global.loggedErrors = global.loggedErrors || new Set();
+global.loggedErrors = new Set();
 
 process.on('uncaughtException', err => {
     if (!global.loggedErrors.has(err)) {
-        console.clear();
         console.error(chalk.bold.red.bold('Uncaught Exception:'), err);
         global.loggedErrors.add(err);
     }
@@ -520,7 +505,6 @@ process.on('uncaughtException', err => {
 
 process.on('rejectionHandled', promise => {
     if (!global.loggedErrors.has(promise)) {
-        console.clear();
         console.error(chalk.bold.red.bold('Rejection Handled:'), promise);
         global.loggedErrors.add(promise);
     }
@@ -530,7 +514,6 @@ process.on('warning', warning => console.warn(chalk.bold.yellow.bold('Warning:')
 
 process.on('unhandledRejection', (reason, promise) => {
     if (!global.loggedErrors.has(reason)) {
-        console.clear();
         console.error(chalk.bold.red.bold('Unhandled Rejection:'), reason);
         global.loggedErrors.add(reason);
     }
@@ -638,8 +621,8 @@ async function filesInit() {
         const moduleName = path.join('/plugins', path.relative(pluginFolder, file));
 
         try {
-            const module = await import(file);
-            global.plugins[moduleName] = module.default || module;
+            const { default: module } = await import(file);
+            global.plugins[moduleName] = (module || (await import(file)));
             return moduleName;
         } catch (e) {
             conn.logger.error(e);
@@ -682,7 +665,6 @@ async function filesInit() {
             null
         );
     } catch (e) {
-        console.clear();
         console.log('Error loaded plugins.');
     }
 }
@@ -938,7 +920,7 @@ async function clearTmp() {
         const filenames = await Promise.all(tmp.map(async (dirname) => {
             try {
                 const files = await readdirSync(dirname);
-                return Promise.all(files.map(async (file) => {
+                return await Promise.all(files.map(async (file) => {
                     try {
                         const filePath = path.join(dirname, file);
                         const stats = await statSync(filePath);
@@ -965,7 +947,7 @@ async function clearTmp() {
 }
 
 async function clearSessions(folder) {
-folder = folder || './' + authFile;
+folder = folder || './' + authFolder;
     try {
         const filenames = await readdirSync(folder);
         const deletedFiles = await Promise.all(filenames.map(async (file) => {
