@@ -93,9 +93,7 @@ const {
 } = await (await import("@whiskeysockets/baileys")).default;
 
 import readline from "readline"
-import {
-    parsePhoneNumber
-} from "libphonenumber-js"
+import parsePhoneNumber from 'awesome-phonenumber';
 
 import single2multi from './lib/single2multi.js';
 import storeSystem from './lib/store-multi.js';
