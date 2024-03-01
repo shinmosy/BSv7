@@ -2,6 +2,7 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 import {
     loadConfig
 } from './config.js';
+import Helper from './lib/helper.js';
 
 import {
     createRequire
@@ -14,22 +15,9 @@ import {
 import {
     platform
 } from 'process';
-global.__filename = function filename(
-    pathURL = import.meta.url,
-    rmPrefix = platform !== "win32"
-) {
-    return rmPrefix ?
-        /file:\/\/\//.test(pathURL) ?
-        fileURLToPath(pathURL) :
-        pathURL :
-        pathToFileURL(pathURL).toString();
-};
-global.__dirname = function dirname(pathURL) {
-    return path.dirname(global.__filename(pathURL, true));
-};
-global.__require = function require(dir = import.meta.url) {
-    return createRequire(dir)
-}
+global.__filename = Helper.__filename;
+global.__dirname = Helper.__dirname;
+global.__require = Helper.__require;
 
 import * as glob from 'glob';
 
@@ -92,13 +80,48 @@ const {
     DisconnectReason
 } = await (await import("@whiskeysockets/baileys")).default;
 
-import readline from "readline"
+import readline from "readline";
 import parsePhoneNumber from 'awesome-phonenumber';
 
 import single2multi from './lib/single2multi.js';
 import storeSystem from './lib/store-multi.js';
-import Helper from './lib/helper.js';
-import emojiRegex from 'emoji-regex';
+
+import { parentPort, isMainThread, Worker } from 'worker_threads';
+import { writeHeapSnapshot } from 'v8';
+
+const heapdumpOptions = { dirname: 'tmp', prefix: 'heapdump_' };
+
+if (isMainThread) {
+  const tmpDir = path.join(process.cwd(), heapdumpOptions.dirname);
+  const worker = new Worker(path.join(process.cwd(), 'main.js'));
+  const heapdumpPromises = [];
+
+  worker.postMessage({ message: 'heapdump', options: heapdumpOptions });
+
+  worker.on('message', filename => heapdumpPromises.push(filename));
+  worker.on('exit', () => Promise.all(heapdumpPromises).then(heapdumpFiles => console.log('Heapdump files:', heapdumpFiles)).catch(error => console.error('Error generating heapdump:', error)));
+  worker.on('error', error => console.error('Worker error:', error));
+} else {
+  parentPort.once('message', async ({ message, options }) => {
+    if (message === 'heapdump') {
+      try {
+        const filename = await generateHeapDump(options);
+        parentPort.postMessage(filename);
+      } catch (error) {
+        console.error('Error generating heapdump:', error);
+      }
+    }
+  });
+
+  parentPort.once('error', error => console.error('Parent port error:', error));
+}
+
+async function generateHeapDump(options) {
+  const { dirname, prefix } = options;
+  const filename = path.join(dirname, `${prefix}${Date.now()}.heapsnapshot`);
+  await writeHeapSnapshot(filename);
+  return filename;
+}
 
 const pairingCode = process.argv.includes("--pairing-code")
 const useMobile = process.argv.includes("--mobile")
@@ -121,21 +144,15 @@ const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
 protoType()
 serialize()
 
-global.API = (name, path = '/', query = {}, apikeyqueryname) => (name in global.APIs ? global.APIs[name] : name) + path + (query || apikeyqueryname ? '?' + new URLSearchParams(Object.entries({
-    ...query,
-    ...(apikeyqueryname ? {
-        [apikeyqueryname]: global.APIKeys[name in global.APIs ? global.APIs[name] : name]
-    } : {})
-})) : '')
+global.API = Helper.API
 global.timestamp = {
     start: new Date()
 }
 
-const __dirname = global.__dirname(import.meta.url)
-global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
-const symbolRegex = /^[^\w\s\d]/u;
-const emojiAndSymbolRegex = new RegExp(`(${symbolRegex.source}|${emojiRegex().source})`, 'u');
-global.prefix = emojiAndSymbolRegex;
+const directoryName = global.__dirname(import.meta.url)
+global.opts = new Object(Helper.opts)
+
+global.prefix = Helper.prefix;
 global.db = new Low(
     /https?:\/\//.test(opts['db'] || '') ?
     new cloudDBAdapter(opts['db']) : /mongodb(\+srv)?:\/\//i.test(opts['db']) ?
@@ -143,7 +160,7 @@ global.db = new Low(
     new JSONFile(`${opts._[0] ? opts._[0] + '_' : ''}database.json`)
 )
 
-global.DATABASE = global.db
+global.DATABASE = global.db;
 global.loadDatabase = async function loadDatabase() {
     if (global.db.READ) return new Promise((resolve) => setInterval(async function() {
         if (!global.db.READ) {
@@ -203,8 +220,8 @@ var [
     isAuthSingleFileExist,
     authState
 ] = await Promise.all([
-    Helper.checkFileExists(authFolder + '/creds.json'),
-    Helper.checkFileExists(authFile),
+    Helper.checkFilesExist(authFolder + '/creds.json'),
+    Helper.checkFilesExist(authFile),
     storeSystem.useMultiFileAuthState(authFolder)
 ])
 
@@ -606,7 +623,7 @@ global.reloadHandler = async function(restatConn) {
     return true;
 };
 
-const pluginFolder = path.resolve(__dirname, 'plugins');
+const pluginFolder = path.resolve(directoryName, 'plugins');
 const pluginFilter = (filename) => /\.js$/.test(filename);
 global.plugins = new Object();
 
@@ -736,7 +753,7 @@ async function watchFiles() {
     ignoreInitial: true,
     persistent: true,
     usePolling: true,
-    cwd: __dirname
+    cwd: directoryName
 });
 
     watcher
@@ -914,7 +931,7 @@ async function _quickTest() {
 
 async function clearTmp() {
     try {
-        const tmp = [tmpdir(), path.join(__dirname, './tmp')];
+        const tmp = [tmpdir(), path.join(directoryName, './tmp')];
         const filenames = await Promise.all(tmp.map(async (dirname) => {
             try {
                 const files = await readdirSync(dirname);
@@ -973,7 +990,7 @@ folder = folder || './' + authFolder;
 const actions = [
     { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
     { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
-    { func: loadConfig, message: 'Sukses Re-load config. ✅', color: 'green' },
+    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
 ];
 
 async function executeActions() {
