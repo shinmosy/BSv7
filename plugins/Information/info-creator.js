@@ -69,7 +69,7 @@ let handler = async (m, {
                 item[0],
                 (await conn.getName(item[0] + "@s.whatsapp.net")) || "Tidak diketahui",
                 "👑 Owner",
-                ((await conn.fetchStatus(item[0] + "@s.whatsapp.net")).status) || "Tidak diketahui",
+                "Saya adalah Owner" || "Tidak diketahui",
                 "wudysoft@gmail.com",
                 "🇮🇩 Indonesia",
                 "🚀 https://aygemuy.github.io/",
@@ -83,11 +83,10 @@ let handler = async (m, {
                 number = number.replace(/[^0-9]/g, '')
                 let njid = number + '@s.whatsapp.net'
                 let biz = await conn.getBusinessProfile(njid).catch(_ => null) || {}
-                // N:;${name.replace(/\n/g, '\\n').split(' ').reverse().join(';')};;;
                 let vcard = `
 BEGIN:VCARD
 VERSION:3.0
-N:Sy;Bot;;;
+N:;${name.replace(/\n/g, '\\n').split(' ').reverse().join(';')};;;
 FN:${name.replace(/\n/g, '\\n')}
 item.ORG:${isi}
 item1.TEL;waid=${number}:${PhoneNumber('+' + number).getNumber('international')}
