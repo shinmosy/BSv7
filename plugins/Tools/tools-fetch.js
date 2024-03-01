@@ -30,84 +30,70 @@ const isTextContent = (contentType) => /^(text\/(plain|html|xml)|application\/(j
 
 const normalizeUrl = (url) => url.match(/^(https?|http):\/\//) ? url : `https://${url.replace(/^\/\/(.+)/, '$1')}`;
 
+const fetchers = [
+  { lib: fetchUndici, options: { redirect: 'follow' } },
+  { lib: got, options: { followRedirect: true, maxRedirects: 5 } },
+  { lib: fetch, options: { redirect: 'follow' } },
+  { lib: axios, options: { maxRedirects: 5, validateStatus: null } }
+];
+
 const handler = async (m, { conn, args }) => {
   const startTime = Date.now();
   const inputText = args?.length >= 1 ? args.join(' ') : m.quoted?.text || '';
   const totalLinks = [...new Set([...inputText.matchAll(urlRegexSafe(urlRegexOptions))].map(match => normalizeUrl(match[0])))].filter(Boolean);
 
-  if (totalLinks.length === 0) return m.reply('Tidak ada link atau alamat IP yang ditemukan.');
-  if (totalLinks.length > MAX_TOTAL_LINKS) return m.reply(`Link terlalu banyak. Hanya maksimal ${MAX_TOTAL_LINKS} link yang diizinkan.`);
-
-  let successCount = 0, errorCount = 0, mediaCount = 0, replyCount = 0, uniqueIdCounter = 1;
-
   const fetchLink = async (url, origin) => {
-    let link, response, contentType, contentLength, txt;
-    try {
-      ({ href: link, origin } = new URL(normalizeUrl(url)));
-      const headers = { Referer: origin, 'User-Agent': userAgent() };
+    let link, response, contentType, contentDisposition, contentLength, txt;
+    for (const fetcher of fetchers) {
       try {
-        response = await fetchUndici(link, { redirect: 'follow', headers });
+        ({ href: link, origin } = new URL(normalizeUrl(url)));
+        const headers = { Referer: origin, 'User-Agent': userAgent() };
+        response = await fetcher.lib(link, { ...fetcher.options, headers });
         contentType = response.headers.get('content-type');
+        contentDisposition = response.headers.get('content-disposition');
         contentLength = response.headers.get('content-length');
-        txt = await response.text();
-      } catch (undiciError) {
-        try {
-          response = await got(link, { followRedirect: true, maxRedirects: 5, headers });
-          contentType = response.headers['content-type'];
-          contentLength = response.headers['content-length'];
-          txt = response.body;
-        } catch (gotError) {
-          try {
-            response = await fetch(link, { redirect: 'follow', headers });
-            contentType = response.headers.get('content-type');
-            contentLength = response.headers.get('content-length');
-            txt = await response.text();
-          } catch (fetchError) {
-            try {
-              response = await axios.get(link, { maxRedirects: 5, validateStatus: null, headers });
-              contentType = response.headers['content-type'];
-              contentLength = response.headers['content-length'];
-              txt = response.data;
-            } catch (axiosError) {
-              errorCount++;
-              console.log(`Error fetching link: ${url}`);
-              return;
-            }
-          }
-        }
+        txt = fetcher.lib === got ? response.body : fetcher.lib === axios ? response.data : await response.text();
+        break;
+      } catch (error) {
+        console.error(`Error fetching link: ${url}`, error);
+        continue;
       }
-    } catch (error) {
-      console.error(`Error fetching link: ${url}`, error);
-      return;
     }
-
     if (!txt || !txt.trim()) {
       m.reply(`Empty result for link: ${url}`);
       return;
     }
-
     const uniqueId = createHash('sha256').update(url + uniqueIdCounter++).digest('hex');
-    resultsMap.set(uniqueId, { link, contentType, contentLength, txt });
-
-    const maxContentLength = Math.max(parseInt(contentLength, 10) ?? (txt && txt.length) ?? 0);
-
+    resultsMap.set(uniqueId, { link, contentType, contentDisposition, contentLength, txt });
+    const maxContentLength = Math.max(parseInt(contentLength, 10) || (txt && txt.length) || 0);
     if (maxContentLength > MAX_CONTENT_SIZE) {
       m.reply(`File terlalu besar. Ukuran maksimum adalah ${formatSize(MAX_CONTENT_SIZE)}`);
       return;
     }
-
     successCount++;
   };
+
+  let successCount = 0, errorCount = 0, mediaCount = 0, replyCount = 0, uniqueIdCounter = 1;
+
+  if (totalLinks.length === 0) return m.reply('Tidak ada link atau alamat IP yang ditemukan.');
+  if (totalLinks.length > MAX_TOTAL_LINKS) return m.reply(`Link terlalu banyak. Hanya maksimal ${MAX_TOTAL_LINKS} link yang diizinkan.`);
 
   for (const url of totalLinks) {
     await fetchLink(url);
   }
 
-  for (const [id, { link, contentType, contentLength, txt }] of resultsMap) {
-    let finalContentLength = parseInt(contentLength, 10) ?? (txt.length !== null && txt.length !== undefined ? txt.length : 0);
-    let finalContentType = contentType ?? null;
+  for (const [id, { link, contentType, contentDisposition, contentLength, txt }] of resultsMap) {
+    let finalContentLength = parseInt(contentLength, 10) || (txt.length !== null && txt.length !== undefined ? txt.length : 0);
+    let finalContentType = contentType && contentType.split(';')[0].trim() || '';
+    let finalContentDisposition = contentDisposition && contentDisposition.match(/filename[^;=\n]*=(["']?)(.*?)\1/)?.[2] || '';
 
-    if (isTextContent(contentType)) {
+    if (isTextContent(finalContentType)) {
+    if (finalContentLength > MAX_TEXT_LENGTH) {
+      mediaCount++;
+      await delay(DELAY_TIME);
+      const caption = `🔗 *Link:* ${link}\n📄 *Type:* ${finalContentType}\n📊 *Size:* ${formatSize(finalContentLength)}`;
+      await conn.sendFile(m.chat, Buffer.from(txt), finalContentDisposition || finalContentType || 'Tidak diketahui', caption, m);
+    } else {
       replyCount++;
       await delay(DELAY_TIME);
       let parsedTxt;
@@ -118,11 +104,12 @@ const handler = async (m, { conn, args }) => {
       } finally {
         m.reply(parsedTxt.slice(0, MAX_TEXT_LENGTH) + '');
       }
+      }
     } else {
       mediaCount++;
       await delay(DELAY_TIME);
-      const caption = `📄 *Type:* ${contentType}\n📊 *Size:* ${formatSize(finalContentLength)}`;
-      await conn.sendFile(m.chat, link, finalContentType || 'Tidak diketahui', caption, m);
+      const caption = `🔗 *Link:* ${link}\n📄 *Type:* ${finalContentType}\n📊 *Size:* ${formatSize(finalContentLength)}`;
+      await conn.sendFile(m.chat, link, finalContentDisposition || finalContentType || 'Tidak diketahui', caption, m);
     }
   }
 
@@ -136,8 +123,7 @@ const completionMessage =
     : `Fetching completed in *${formattedTime}*. Successfully fetched *${successCount}* out of *${totalLinks.length}* links. Failed to fetch *${errorCount}* links.\n📝 *Replies Sent:* ${replyCount}\n📈 *Media Sent:* ${mediaCount}`;
 
 m.reply(completionMessage);
-
-  resultsMap.clear();
+resultsMap.clear();
 };
 
 handler.help = ['get', 'fetch'];
