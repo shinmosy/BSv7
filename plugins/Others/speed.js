@@ -4,21 +4,23 @@ import {
     freemem
 } from 'os'
 import util from 'util'
+import fs from 'fs';
+import { join } from 'path';
+
 import os from 'os'
 import osu from 'node-os-utils'
 import fetch from 'node-fetch'
 import {
     performance
 } from 'perf_hooks'
-import {
-    sizeFormatter
-} from 'human-readable'
+import { sizeFormatter, durationFormatter } from 'human-readable';
+
 const format = sizeFormatter({
-    std: 'JEDEC',
-    decimalPlaces: 2,
-    keepTrailingZeroes: false,
-    standard: 'KMGTPEZY'
-});
+  std: 'JEDEC',
+  decimalPlaces: 2,
+  keepTrailingZeroes: false,
+  render: (literal, symbol) => `${literal} ${symbol}B`,
+})
 
 const handler = async (m, {
     conn,
@@ -81,8 +83,8 @@ const handler = async (m, {
         })
         let driveTotal, driveUsed, drivePer
         let p2 = drive.info().then(info => {
-            driveTotal = (info.totalGb + ' GB'),
-                driveUsed = info.usedGb,
+            driveTotal = format(info.totalGb * 1024 * 1024 * 1024),
+                driveUsed = format(info.usedGb * 1024 * 1024 * 1024),
                 drivePer = (info.usedPercentage + '%')
         }).catch(() => {
             driveTotal = NotDetect,
@@ -91,22 +93,24 @@ const handler = async (m, {
         })
         let ramTotal, ramUsed
         let p3 = mem.info().then(info => {
-            ramTotal = info.totalMemMb,
-                ramUsed = info.usedMemMb
+            ramTotal = (info.totalMemMb * 1024 * 1024),
+    ramUsed = (info.usedMemMb * 1024 * 1024)
         }).catch(() => {
             ramTotal = NotDetect,
                 ramUsed = NotDetect
         })
         let netsIn, netsOut
         let p4 = netstat.inOut().then(info => {
-            netsIn = (info.total.inputMb + ' MB'),
-                netsOut = (info.total.outputMb + ' MB')
+            netsIn = format(info.total.inputMb * 1024 * 1024),
+                netsOut = format(info.total.outputMb * 1024 * 1024)
         }).catch(() => {
             netsIn = NotDetect,
                 netsOut = NotDetect
         })
         await Promise.all([p1, p2, p3, p4])
-        let _ramTotal = (ramTotal + ' MB')
+        let _ramUsed = format(ramUsed)
+        let _ramTotal = format(ramTotal)
+        let percent = /[0-9.+/]/g.test(ramUsed) &&  /[0-9.+/]/g.test(ramTotal) ? Math.round(100 * (ramUsed / ramTotal)) + '%' : NotDetect;
         let cek = await (await fetch("https://api.myip.com")).json().catch(_ => 'error')
 
         let ip = (cek == 'error' ? NotDetect : cek.ip)
@@ -131,10 +135,16 @@ const handler = async (m, {
 
         let old = performance.now()
         let neww = performance.now()
+        
+const getFolderSize = folderPath => fs.statSync(folderPath).size + (fs.readdirSync(folderPath) || []).reduce((acc, file) => acc + (fs.statSync(join(folderPath, file)).isDirectory() ? getFolderSize(join(folderPath, file)) : fs.statSync(join(folderPath, file)).size), 0);
+
+let folderSession = `${format(getFolderSize(authFolder))}`;
+let credsSession = `${format(fs.statSync(join(authFolder, 'creds.json')).size)}`;
+
         let speed = neww - old
         let str = `- *ᴘ ɪ ɴ ɢ* -
-${Math.round(neww - old)}ms
-${speed}ms
+> ${Math.round(neww - old)}ms
+> ${speed}ms
 
 - *ʀ ᴜ ɴ ᴛ ɪ ᴍ ᴇ* -
 ${muptime}
@@ -147,9 +157,10 @@ ${readMore}
 • *${chats.length}* Total Chats
 
 - *s ᴇ ʀ ᴠ ᴇ ʀ* -
-*🛑 Rᴀᴍ:* ${ramUsed} / ${_ramTotal}(${/[0-9.+/]/g.test(ramUsed) &&  /[0-9.+/]/g.test(ramTotal) ? Math.round(100 * (ramUsed / ramTotal)) + '%' : NotDetect})
+*🛑 Rᴀᴍ:* ${_ramUsed} / ${_ramTotal} (${percent})
 *🔵 FʀᴇᴇRᴀᴍ:* ${format(freemem())}
-
+*📑 ᴄʀᴇᴅꜱ sᴇssɪᴏɴ sɪᴢᴇ :* ${credsSession}
+*📑 ꜰᴏʟᴅᴇʀ sᴇssɪᴏɴ sɪᴢᴇ :* ${folderSession}
 *🔭 ᴘʟᴀᴛғᴏʀᴍ:* ${os.platform()}
 *🧿 sᴇʀᴠᴇʀ:* ${os.hostname()}
 *💻 ᴏs:* ${OS}
@@ -172,9 +183,14 @@ ${readMore}
 
 ${readMore}
 *${htjava} ɴᴏᴅᴇJS ᴍᴇᴍᴏʀʏ ᴜsᴀɢᴇ*
-${'```' + Object.keys(used).map((key, _, arr) => `${key.padEnd(Math.max(...arr.map(v => v.length)), ' ')}: ${format(used[key])}`).join('\n') + '```'
-}
-`
+${'```' + Object.keys(used).map((key, _, arr) => `${key.padEnd(Math.max(...arr.map(v => v.length)), ' ')}: ${format(used[key])}`).join('\n') + '```'}
+
+${cpus[0] ? `*Total CPU Usage*
+${cpus[0].model.trim()} (${cpu.speed} MHZ)\n${Object.keys(cpu.times).map(type => `- *${(type + '*').padEnd(6)}: ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}
+
+*CPU Core(s) Usage (${cpus.length} Core CPU)*
+${cpus.map((cpu, i) => `*${i + 1}.* ${cpu.model.trim()} (${cpu.speed} MHZ)\n${Object.keys(cpu.times).map(type => `> *${(type + '*').padEnd(6)}: ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}`).join('\n\n')}` : ''}` 
+
 const thumbnail = await conn.getFile("https://cdn-icons-png.flaticon.com/128/9320/9320767.png");
         await conn.sendMessage(m.chat, {
             text: str,
