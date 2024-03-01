@@ -15,9 +15,9 @@ import fs from "fs"
 import fetch from "node-fetch"
 
 const defaultMenu = {
-    before: `%dash
+    before: `\`.\`         %dash
 
-%m1 *U S E R*
+%m1 *\`U S E R\`*
 %m2 *Name:* %name
 %m2 *Tag:* %tag
 %m2 *Status:* %prems
@@ -29,7 +29,7 @@ const defaultMenu = {
 %m2 *Total Xp:* %totalexp
 %m3
 
-%m1 *T O D A Y*
+%m1 *\`T O D A Y\`*
 %m2 *%ucpn*
 %m2 *Days:* %week %weton
 %m2 *Date:* %date
@@ -37,7 +37,7 @@ const defaultMenu = {
 %m2 *Time:* %wita
 %m3
 
-%m1 *I N F O*
+%m1 *\`I N F O\`*
 %m2 *Bot Name:* %me
 %m2 *Mode:* %mode
 %m2 *Platform:* %platform
@@ -48,7 +48,7 @@ const defaultMenu = {
 %m2 *Database:* %rtotalreg dari %totalreg
 %m3
 
-%m1 *I N F O  C M D* 
+%m1 *\`I N F O  C M D\`*
 %m4 *%totalfeatures* Command
 %m4 *Ⓖ* = Group
 %m4 *Ⓟ* = Private
@@ -61,8 +61,9 @@ const defaultMenu = {
     header: "%cc *%category* %c1",
     body: "%c2 %cmd %isGroup %isPrivate %isOwner %isPremium %isLimit",
     footer: "%c3",
-    after: "%c4                %me",
-}
+    after: "%c4         %me",
+};
+
 let handler = async (m, {
     conn,
     usedPrefix: _p,
@@ -674,13 +675,13 @@ let handler = async (m, {
 
         let tek = `👋 Hai, ${ucapan()} ${conn.getName(m.sender)}
 
-${spas} *[ U S E R  I N F O ]*
+${spas2} *\`[ U S E R  I N F O ]\`*
 👥 *ɴᴀᴍᴇ:* ${usrs.registered ? usrs.name : conn.getName(m.sender)}
 📧 *ᴛᴀɢs:* @${m.sender.split`@`[0]}
 🔒 *sᴛᴀᴛᴜs:* ${m.sender.split`@`[0] == nomorown ? "Developer" : (usrs.premiumTime >= 1 ? "Premium User" : "Free User")}
 💎 *ᴘʀᴇᴍɪᴜᴍ:* ${usrs.premiumTime > 1 ? "Yes": "No"}
 
-${spas} *[ S T A T U S  I N F O ]*
+${spas2} *\`[ S T A T U S  I N F O ]\`*
 🖥️ *ᴜᴘᴛɪᴍᴇ:* ${muptime}
 ⏰ *ᴛɪᴍᴇ:* ${waktuwita}
 🕵🏻‍♂️ *ᴜsᴇʀs:* ${Object.keys(glb).length}
@@ -711,13 +712,12 @@ ${clockStringP(usrs.premiumTime - new Date())}` : ""}
                 */
             // Biasa
             let sects = sections[2].rows.map((v, index) => {
-                return `${v.title.slice(16)}
-${v.rowId}`.trim()
+                return `${v.title.slice(16)}\n> ${v.rowId}`.trim()
             }).filter(v => v).join("\n\n")
 
 
             // Biasa
-            let caption = tek + "\n\n" + spas + "*[ C O M M A N D ]*\n" + sects
+            let caption = tek + "\n\n" + spas + "*\`[ C O M M A N D ]\`*\n\n" + sects
             conn.temamenu = conn.temamenu ? conn.temamenu : {
                 id: 1
             }
@@ -872,7 +872,7 @@ ${v.rowId}`.trim()
         let _text = [
             before,
             ...Object.keys(tags).map(tag => {
-                return header.replace(/%category/g, tags[tag]) + "\n" + [
+                return header.replace(/%category/g, "`" + (tags[tag]).toUpperCase() + "`") + "\n" + [
                     ...help.filter(menu => menu.tags && menu.tags.includes(tag) && menu.help).map(menu => {
                         return menu.help.map(help => {
                             return body.replace(/%cmd/g, menu.prefix ? help : "%_p" + help)
@@ -881,6 +881,7 @@ ${v.rowId}`.trim()
                                 .replace(/%isOwner/g, menu.owner ? "Ⓞ" : "")
                                 .replace(/%isPremium/g, menu.premium ? "🅟" : "")
                                 .replace(/%isLimit/g, menu.limit ? "Ⓛ" : "")
+                                .replace(/<([^>]*)>/g, "[$1]")
                                 .trim()
                         }).join("\n")
                     }),

@@ -15,9 +15,9 @@ import fs from "fs"
 import fetch from "node-fetch"
 
 const defaultMenu = {
-    before: `%dash
+    before: `\`.\`         %dash
 
-%m1 *U S E R*
+%m1 *\`U S E R\`*
 %m2 *Name:* %name
 %m2 *Tag:* %tag
 %m2 *Status:* %prems
@@ -29,7 +29,7 @@ const defaultMenu = {
 %m2 *Total Xp:* %totalexp
 %m3
 
-%m1 *T O D A Y*
+%m1 *\`T O D A Y\`*
 %m2 *%ucpn*
 %m2 *Days:* %week %weton
 %m2 *Date:* %date
@@ -37,7 +37,7 @@ const defaultMenu = {
 %m2 *Time:* %wita
 %m3
 
-%m1 *I N F O*
+%m1 *\`I N F O\`*
 %m2 *Bot Name:* %me
 %m2 *Mode:* %mode
 %m2 *Platform:* %platform
@@ -48,7 +48,7 @@ const defaultMenu = {
 %m2 *Database:* %rtotalreg dari %totalreg
 %m3
 
-%m1 *I N F O  C M D* 
+%m1 *\`I N F O  C M D\`*
 %m4 *%totalfeatures* Command
 %m4 *Ⓖ* = Group
 %m4 *Ⓟ* = Private
@@ -61,8 +61,9 @@ const defaultMenu = {
     header: "%cc *%category* %c1",
     body: "%c2 %cmd %isGroup %isPrivate %isOwner %isPremium %isLimit",
     footer: "%c3",
-    after: "%c4                %me",
-}
+    after: "%c4         %me",
+};
+
 let handler = async (m, {
     conn,
     usedPrefix: _p,
@@ -336,7 +337,7 @@ let handler = async (m, {
         let _text = [
             before,
             ...Object.keys(tags).map(tag => {
-                return header.replace(/%category/g, tags[tag]) + "\n" + [
+                return header.replace(/%category/g, "`" + (tags[tag]).toUpperCase() + "`") + "\n" + [
                     ...help.filter(menu => menu.tags && menu.tags.includes(tag) && menu.help).map(menu => {
                         return menu.help.map(help => {
                             return body.replace(/%cmd/g, menu.prefix ? help : "%_p" + help)
@@ -345,6 +346,7 @@ let handler = async (m, {
                                 .replace(/%isOwner/g, menu.owner ? "Ⓞ" : "")
                                 .replace(/%isPremium/g, menu.premium ? "🅟" : "")
                                 .replace(/%isLimit/g, menu.limit ? "Ⓛ" : "")
+                                .replace(/<([^>]*)>/g, "[$1]")
                                 .trim()
                         }).join("\n")
                     }),
@@ -505,7 +507,7 @@ let handler = async (m, {
                             previewType: 0,
                             renderLargerThumbnail: true,
                             thumbnailUrl: [logo, imagebot].getRandom(),
-                            sourceUrl: ''
+                            sourceUrl: ""
                         }
                     },
                 }
@@ -549,16 +551,16 @@ let handler = async (m, {
                         previewType: 0,
                         renderLargerThumbnail: true,
                         thumbnailUrl: [logo, imagebot].getRandom(),
-                        sourceUrl: ''
+                        sourceUrl: ""
                     }
                 }
             });
         } else if (conn.temamenu.id === 7) {
             await conn.relayMessage(m.chat, {
                 requestPaymentMessage: {
-                    currencyCodeIso4217: 'INR',
+                    currencyCodeIso4217: "INR",
                     amount1000: fsizedoc,
-                    requestFrom: '0@s.whatsapp.net',
+                    requestFrom: "0@s.whatsapp.net",
                     noteMessage: {
                         extendedTextMessage: {
                             text: caption,
