@@ -77,7 +77,9 @@ const {
     proto,
     PHONENUMBER_MCC,
     delay,
-    DisconnectReason
+    DisconnectReason,
+    useMultiFileAuthState,
+    makeInMemoryStore
 } = await (await import("@whiskeysockets/baileys")).default;
 
 import readline from "readline";
@@ -222,13 +224,13 @@ var [
 ] = await Promise.all([
     Helper.checkFilesExist(authFolder + '/creds.json'),
     Helper.checkFilesExist(authFile),
-    storeSystem.useMultiFileAuthState(authFolder)
+    useMultiFileAuthState(authFolder)
 ])
 
 const logger = Pino({
     level: "silent"
 });
-global.store = storeSystem.makeInMemoryStore({
+global.store = makeInMemoryStore({
     logger
 })
 
@@ -238,7 +240,7 @@ if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await storeSystem.useMultiFileAuthState(authFolder);
+        authState = await useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
