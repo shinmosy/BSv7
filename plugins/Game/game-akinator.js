@@ -1,4 +1,6 @@
-import fetch from 'node-fetch'
+import {
+    Aki
+} from 'aki-api';
 
 let handler = async (m, {
     conn,
@@ -6,37 +8,22 @@ let handler = async (m, {
     command,
     text
 }) => {
-    if (m.isGroup) return
-    let aki = global.db.data.users[m.sender].akinator
+    conn.akinator = conn.akinator || {};
     if (text == 'end') {
-        if (!aki.sesi) return m.reply('Anda tidak sedang dalam sesi Akinator')
-        aki.sesi = false
-        aki.soal = null
+        if (!conn.akinator[m.sender]) return m.reply('Anda tidak sedang dalam sesi Akinator')
+        delete conn.akinator[m.sender]
         m.reply('Berhasil keluar dari sesi Akinator.')
-    } else {
-        if (aki.sesi) return conn.reply(m.chat, 'Anda masih berada dalam sesi Akinator', aki.soal)
+    } else if (text == 'start') {
+        if (conn.akinator[m.sender]) return conn.reply(m.chat, 'Anda masih berada dalam sesi Akinator', conn.akinator[m.sender].msg)
         try {
-            let res = await fetch(`https://api.lolhuman.xyz/api/akinator/start?apikey=${global.lolkey}`)
-            let anu = await res.json()
-            if (anu.status !== 200) throw Error('Emror')
-            let {
-                server,
-                frontaddr,
-                session,
-                signature,
-                question,
-                progression,
-                step
-            } = anu.result
-            aki.sesi = true
-            aki.server = server
-            aki.frontaddr = frontaddr
-            aki.session = session
-            aki.signature = signature
-            aki.question = question
-            aki.progression = progression
-            aki.step = step
-            let txt = `🎮 *Akinator* 🎮\n\n@${m.sender.split('@')[0]}\n${question}\n\n`
+            conn.akinator[m.sender] = new Aki({
+                region: 'id',
+                childMode: false,
+                proxy: undefined
+            });
+            await conn.akinator[m.sender].start();
+
+            let txt = `🎮 *Akinator* 🎮\n\n@${m.sender.split('@')[0]}\n${conn.akinator[m.sender].question}\n\n`
             txt += '0 - Ya\n'
             txt += '1 - Tidak\n'
             txt += '2 - Saya Tidak Tau\n'
@@ -49,11 +36,13 @@ let handler = async (m, {
             }, {
                 quoted: m
             })
-            aki.soal = soal
+            conn.akinator[m.sender].msg = soal
         } catch (e) {
             console.log(e)
-            m.reply('Fitur Error!')
+            await m.reply(eror)
         }
+    } else {
+        m.reply('Contoh: .akinator start/end')
     }
 }
 
