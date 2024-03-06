@@ -1,148 +1,56 @@
-import {
-    cpus as _cpus,
-    totalmem,
-    freemem
-} from 'os'
-import util from 'util'
-import fs from 'fs';
+import { cpus as _cpus, totalmem, freemem } from 'os';
+import util from 'util';
+import fs, { statSync, readdirSync } from 'fs';
 import { join } from 'path';
+import os, { hostname } from 'os';
+import osu from 'node-os-utils';
+import fetch from 'node-fetch';
+import { performance } from 'perf_hooks';
+import { sizeFormatter } from 'human-readable';
 
-import os from 'os'
-import osu from 'node-os-utils'
-import fetch from 'node-fetch'
-import {
-    performance
-} from 'perf_hooks'
-import { sizeFormatter, durationFormatter } from 'human-readable';
+const format = sizeFormatter({ std: 'JEDEC', decimalPlaces: 2, keepTrailingZeroes: false, render: (literal, symbol) => `${literal} ${symbol}B` });
 
-const format = sizeFormatter({
-  std: 'JEDEC',
-  decimalPlaces: 2,
-  keepTrailingZeroes: false,
-  render: (literal, symbol) => `${literal} ${symbol}B`,
-})
-
-const handler = async (m, {
-    conn,
-    isRowner
-}) => {
+const handler = async (m, { conn, isRowner }) => {
     try {
-        let _muptime
-        if (process.send) {
-            process.send('uptime')
-            _muptime = await new Promise(resolve => {
-                process.once('message', resolve)
-                setTimeout(resolve, 1000)
-            }) * 1000
-        }
-        let muptime = clockString(_muptime)
-        const chats = Object.entries(conn.chats).filter(([id, data]) => id && data.isChats)
-        const groupsIn = chats.filter(([id]) => id.endsWith('@g.us'))
-        const used = process.memoryUsage()
-        const cpus = _cpus().map(cpu => {
-            cpu.total = Object.keys(cpu.times).reduce((last, type) => last + cpu.times[type], 0)
-            return cpu
-        })
-        const cpu = cpus.reduce((last, cpu, _, {
-            length
-        }) => {
-            last.total += cpu.total
-            last.speed += cpu.speed / length
-            last.times.user += cpu.times.user
-            last.times.nice += cpu.times.nice
-            last.times.sys += cpu.times.sys
-            last.times.idle += cpu.times.idle
-            last.times.irq += cpu.times.irq
-            return last
-        }, {
-            speed: 0,
-            total: 0,
-            times: {
-                user: 0,
-                nice: 0,
-                sys: 0,
-                idle: 0,
-                irq: 0
-            }
-        })
-        let NotDetect = 'ɴᴏᴛ ᴅᴇᴛᴇᴄᴛ'
-        let cpux = osu.cpu
-        let cpuCore = cpux.count()
-        let drive = osu.drive
-        let mem = osu.mem
-        let netstat = osu.netstat
-        let HostN = osu.os.hostname()
-        let OS = osu.os.platform()
-        let ipx = osu.os.ip()
-        let cpuModel = cpux.model()
-        let cpuPer
-        let p1 = cpux.usage().then(cpuPercentage => {
-            cpuPer = cpuPercentage
-        }).catch(() => {
-            cpuPer = NotDetect
-        })
-        let driveTotal, driveUsed, drivePer
-        let p2 = drive.info().then(info => {
-            driveTotal = format(info.totalGb * 1024 * 1024 * 1024),
-                driveUsed = format(info.usedGb * 1024 * 1024 * 1024),
-                drivePer = (info.usedPercentage + '%')
-        }).catch(() => {
-            driveTotal = NotDetect,
-                driveUsed = NotDetect,
-                drivePer = NotDetect
-        })
-        let ramTotal, ramUsed
-        let p3 = mem.info().then(info => {
-            ramTotal = (info.totalMemMb * 1024 * 1024),
-    ramUsed = (info.usedMemMb * 1024 * 1024)
-        }).catch(() => {
-            ramTotal = NotDetect,
-                ramUsed = NotDetect
-        })
-        let netsIn, netsOut
-        let p4 = netstat.inOut().then(info => {
-            netsIn = format(info.total.inputMb * 1024 * 1024),
-                netsOut = format(info.total.outputMb * 1024 * 1024)
-        }).catch(() => {
-            netsIn = NotDetect,
-                netsOut = NotDetect
-        })
-        await Promise.all([p1, p2, p3, p4])
-        let _ramUsed = format(ramUsed)
-        let _ramTotal = format(ramTotal)
-        let percent = /[0-9.+/]/g.test(ramUsed) &&  /[0-9.+/]/g.test(ramTotal) ? Math.round(100 * (ramUsed / ramTotal)) + '%' : NotDetect;
-        let cek = await (await fetch("https://api.myip.com")).json().catch(_ => 'error')
+        const chats = Object.entries(conn.chats).filter(([id, data]) => id && data.isChats);
+        const groupsIn = chats.filter(([id]) => id.endsWith('@g.us'));
+        const used = process.memoryUsage();
+        const cpus = _cpus().map(cpu => { cpu.total = Object.keys(cpu.times).reduce((last, type) => last + cpu.times[type], 0); return cpu; });
+        const cpu = cpus.reduce((last, cpu, _, { length }) => { last.total += cpu.total; last.speed += cpu.speed; Object.keys(cpu.times).forEach(type => last.times[type] += cpu.times[type]); return last; }, { speed: 0, total: 0, times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 } });
+        const NotDetect = 'ɴᴏᴛ ᴅᴇᴛᴇᴄᴛ';
+        const cpux = osu.cpu;
+        const cpuCore = cpux.count();
+        const drive = osu.drive;
+        const mem = osu.mem;
+        const netstat = osu.netstat;
+        const HostN = hostname();
+        const OS = os.platform();
+        const ipx = osu.os.ip();
+        const cpuModel = cpux.model();
+        const [cpuPer, driveInfo, memInfo, netInfo, { ip, country: cr, cc }] = await Promise.all([
+            cpux.usage().then(cpuPercentage => cpuPercentage).catch(() => NotDetect),
+            drive.info().catch(() => ({ totalGb: NotDetect, usedGb: NotDetect, usedPercentage: NotDetect })),
+            mem.info().catch(() => ({ totalMemMb: NotDetect, usedMemMb: NotDetect })),
+            netstat.inOut().catch(() => ({ total: { inputMb: NotDetect, outputMb: NotDetect } })),
+            fetch("https://api.myip.com").then(res => res.json()).catch(_ => ({ ip: NotDetect, country: NotDetect, cc: NotDetect })),
+        ]);
+        const [_ramUsed, _ramTotal] = [format(memInfo.usedMemMb * 1024 * 1024) || NotDetect, format(memInfo.totalMemMb * 1024 * 1024) || NotDetect];
+        const percent = /[0-9.+/]/g.test(memInfo.usedMemMb) &&  /[0-9.+/]/g.test(memInfo.totalMemMb) ? Math.round(100 * (memInfo.usedMemMb / memInfo.totalMemMb)) + '%' : NotDetect;
+        const d = new Date(new Date + 3600000);
+        const [weeks, dates, times] = [d.toLocaleDateString('id', { weekday: 'long' }), d.toLocaleDateString('id', { day: 'numeric', month: 'long', year: 'numeric' }), d.toLocaleTimeString('id', { hour: 'numeric', minute: 'numeric', second: 'numeric' })];
+        const old = performance.now();
+        const neww = performance.now();
 
-        let ip = (cek == 'error' ? NotDetect : cek.ip)
-        let cr = (cek == 'error' ? NotDetect : cek.country)
-        let cc = (cek == 'error' ? NotDetect : cek.cc)
+        const getFolderSize = folderPath => statSync(folderPath).size + (readdirSync(folderPath) || []).reduce((acc, file) => acc + (statSync(join(folderPath, file)).isDirectory() ? getFolderSize(join(folderPath, file)) : statSync(join(folderPath, file)).size), 0);
 
-        let d = new Date(new Date + 3600000)
-        let locale = 'id'
-        let weeks = d.toLocaleDateString(locale, {
-            weekday: 'long'
-        })
-        let dates = d.toLocaleDateString(locale, {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        })
-        let times = d.toLocaleTimeString(locale, {
-            hour: 'numeric',
-            minute: 'numeric',
-            second: 'numeric'
-        })
+        const folderSession = `${format(getFolderSize(authFolder))}` || NotDetect;
+        const credsSession = `${format(statSync(join(authFolder, 'creds.json')).size)}` || NotDetect;
 
-        let old = performance.now()
-        let neww = performance.now()
-        
-const getFolderSize = folderPath => fs.statSync(folderPath).size + (fs.readdirSync(folderPath) || []).reduce((acc, file) => acc + (fs.statSync(join(folderPath, file)).isDirectory() ? getFolderSize(join(folderPath, file)) : fs.statSync(join(folderPath, file)).size), 0);
+        const speed = neww - old;
+        const _muptime = process.send ? await new Promise(resolve => { process.send('uptime'); process.once('message', resolve); setTimeout(resolve, 1000); }) * 1000 : null;
+        const muptime = _muptime ? clockString(_muptime) : 'ɴᴏᴛ ᴅᴇᴛᴇᴄᴛ';
 
-let folderSession = `${format(getFolderSize(authFolder))}`;
-let credsSession = `${format(fs.statSync(join(authFolder, 'creds.json')).size)}`;
-
-        let speed = neww - old
-        let str = `- *ᴘ ɪ ɴ ɢ* -
+        const str = `- *ᴘ ɪ ɴ ɢ* -
 > ${Math.round(neww - old)}ms
 > ${speed}ms
 
@@ -161,8 +69,8 @@ ${readMore}
 *🔵 FʀᴇᴇRᴀᴍ:* ${format(freemem())}
 *📑 ᴄʀᴇᴅꜱ sᴇssɪᴏɴ sɪᴢᴇ :* ${credsSession}
 *📑 ꜰᴏʟᴅᴇʀ sᴇssɪᴏɴ sɪᴢᴇ :* ${folderSession}
-*🔭 ᴘʟᴀᴛғᴏʀᴍ:* ${os.platform()}
-*🧿 sᴇʀᴠᴇʀ:* ${os.hostname()}
+*🔭 ᴘʟᴀᴛғᴏʀᴍ:* ${OS}
+*🧿 sᴇʀᴠᴇʀ:* ${HostN}
 *💻 ᴏs:* ${OS}
 *📍 ɪᴘ:* ${ip}
 *🌎 ᴄᴏᴜɴᴛʀʏ:* ${cr}
@@ -175,36 +83,25 @@ ${readMore}
 - *ᴏ ᴛ ʜ ᴇ ʀ* -
 *📅 Wᴇᴇᴋꜱ:* ${weeks}
 *📆 Dᴀᴛᴇꜱ:* ${dates}
-*🔁 NᴇᴛꜱIɴ:* ${netsIn}
-*🔁 NᴇᴛꜱOᴜᴛ:* ${netsOut}
-*💿 DʀɪᴠᴇTᴏᴛᴀʟ:* ${driveTotal}
-*💿 DʀɪᴠᴇUꜱᴇᴅ:* ${driveUsed}
-*⚙️ DʀɪᴠᴇPᴇʀ:* ${drivePer}
+*🔁 NᴇᴛꜱIɴ:* ${format(netInfo.total.inputMb * 1024 * 1024)}
+*🔁 NᴇᴛꜱOᴜᴛ:* ${format(netInfo.total.outputMb * 1024 * 1024)}
+*💿 DʀɪᴠᴇTᴏᴛᴀʟ:* ${format(driveInfo.totalGb * 1024 * 1024 * 1024)}
+*💿 DʀɪᴠᴇUꜱᴇᴅ:* ${format(driveInfo.usedGb * 1024 * 1024 * 1024)}
+*⚙️ DʀɪᴠᴇPᴇʀ:* ${driveInfo.usedPercentage}
 
 ${readMore}
 *${htjava} ɴᴏᴅᴇJS ᴍᴇᴍᴏʀʏ ᴜsᴀɢᴇ*
-${'```' + Object.keys(used).map((key, _, arr) => `${key.padEnd(Math.max(...arr.map(v => v.length)), ' ')}: ${format(used[key])}`).join('\n') + '```'}
+${'```' + Object.entries(used).map(([key, val]) => `${key.padEnd(Math.max(...Object.keys(used).map(v => v.length)), ' ')}: ${format(val)}`).join('\n') + '```'}
 
 ${cpus[0] ? `*Total CPU Usage*
-${cpus[0].model.trim()} (${cpu.speed} MHZ)\n${Object.keys(cpu.times).map(type => `- *${(type + '*').padEnd(6)}: ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}
+${cpus[0].model.trim()} (${Math.round(cpu.speed / cpus.length)} MHz)\n${Object.entries(cpu.times).map(([type, time]) => `- *${type}* ${(100 * time / cpu.total).toFixed(2)}%`).join('\n')}
 
 *CPU Core(s) Usage (${cpus.length} Core CPU)*
-${cpus.map((cpu, i) => `*${i + 1}.* ${cpu.model.trim()} (${cpu.speed} MHZ)\n${Object.keys(cpu.times).map(type => `> *${(type + '*').padEnd(6)}: ${(100 * cpu.times[type] / cpu.total).toFixed(2)}%`).join('\n')}`).join('\n\n')}` : ''}` 
+${cpus.map((cpu, i) => `*${i + 1}.* ${cpu.model.trim()} (${Math.round(cpu.speed)} MHz)\n${Object.entries(cpu.times).map(([type, time]) => `> *${type}* ${(100 * time / cpu.total).toFixed(2)}%`).join('\n')}`).join('\n\n')}` : ''}`;
 
-const thumbnail = await conn.getFile("https://cdn-icons-png.flaticon.com/128/9320/9320767.png");
-        await conn.sendMessage(m.chat, {
-            text: str,
-            contextInfo: {
-                externalAdReply: {
-                    title: "🤖 Bot Speed",
-                    thumbnail: thumbnail.data,
-                },
-                mentionedJid: [m.sender],
-            },
-        }, { quoted: m });
-    } catch (error) {
-        console.error(error);
-    }
+        const thumbnail = await conn.getFile("https://cdn-icons-png.flaticon.com/128/9320/9320767.png");
+        await conn.sendMessage(m.chat, { text: str, contextInfo: { externalAdReply: { title: "🤖 Bot Speed", thumbnail: thumbnail.data, }, mentionedJid: [m.sender], }, }, { quoted: m });
+    } catch (error) { console.error(error); }
 };
 
 handler.help = ['ping', 'speed'];
@@ -217,11 +114,6 @@ const more = String.fromCharCode(8206);
 const readMore = more.repeat(4001);
 
 function clockString(ms) {
-    try {
-        let [d, h, m, s] = isNaN(ms) ? ['--', '--', '--', '--'] : [Math.floor(ms / 86400000), Math.floor(ms / 3600000) % 24, Math.floor(ms / 60000) % 60, Math.floor(ms / 1000) % 60];
-        return `☀️ *${d}* Days\n🕐 *${h}* Hours\n⏰ *${m}* Minutes\n⏱️ *${s}* Seconds`;
-    } catch (error) {
-        console.error(error);
-        return 'Error in clockString function';
-    }
+    const [d, h, m, s] = [Math.floor(ms / 86400000), Math.floor(ms / 3600000) % 24, Math.floor(ms / 60000) % 60, Math.floor(ms / 1000) % 60];
+    return `☀️ *${d}* Days\n🕐 *${h}* Hours\n⏰ *${m}* Minutes\n⏱️ *${s}* Seconds`;
 }
