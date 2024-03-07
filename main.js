@@ -474,18 +474,19 @@ async function connectionUpdate(update) {
 🕒 *Time:* ${currentTime.toLocaleTimeString()}
 📆 *Day:* ${currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
 📝 *Description:* Bot *${name || 'Taylor'}* is now active.`;
-
-            await conn.reply(
+await delay(3000);
+            const messg = await conn.sendMessage(
                 `${nomorown}@s.whatsapp.net`,
-                infoMsg,
-                null, {
+                { text: infoMsg },
+                { quoted: null,
                     contextInfo: {
                         mentionedJid: [nomorown + '@s.whatsapp.net', jid]
                     },
-                }
+              }
             );
+            if (!messg) return conn.logger.error(`Error Connection'\n${format(e)}'`);
         } catch (e) {
-            console.log('Bot is now active.');
+            conn.logger.error(`Error Connection'\n${format(e)}'`);
         }
         conn.logger.info(chalk.bold.yellow('\n🚩 R E A D Y'));
     }
@@ -671,18 +672,19 @@ async function filesInit() {
     conn.logger.error(`❌ Error Plugins:\n${errorMessages.length} total`);
 
     try {
-        await conn.reply(
-            nomorown + '@s.whatsapp.net',
+        const messg = await conn.sendMessage(
+            nomorown + '@s.whatsapp.net', { text:
             `🤖 *Loaded Plugins Report* 🤖\n` +
             `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
             `✅ *Success:* ${successMessages.length}\n` +
             `❌ *Error:* ${errorMessages.length}\n` +
             (errorMessages.length > 0 ?
-                `  ❗ *Errors:* ${errorMessages.map((error, index) => `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`).join('')}\n` : ''),
-            null
+                `  ❗ *Errors:* ${errorMessages.map((error, index) => `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`).join('')}\n` : '') },
+            { quoted: null }
         );
+        if (!messg) return conn.logger.error(`Error load plugin '\n${format(e)}'`);
     } catch (e) {
-        console.log('Error loaded plugins.');
+        conn.logger.error(`Error load plugin '\n${format(e)}'`);
     }
 }
 
@@ -817,7 +819,7 @@ let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambung
 do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await delay(1000);
+    await delay(3000);
 } while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
@@ -833,7 +835,6 @@ const steps = [
     watchPluginStep
 ];
 
-const delayBetweenSteps = 3000;
 const mainSpinner = ora({
     text: chalk.bold.yellow('Proses sedang berlangsung...'),
     spinner: 'moon'
@@ -841,7 +842,7 @@ const mainSpinner = ora({
 
 const executeStep = async (step, index) => {
     mainSpinner.text = chalk.bold.yellow(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} sedang berlangsung...`);
-    await delay(index * delayBetweenSteps);
+    await delay(index * 3000);
 
     try {
         const result = await step();
@@ -941,7 +942,7 @@ async function clearTmp() {
                     try {
                         const filePath = path.join(dirname, file);
                         const stats = await statSync(filePath);
-                        if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 3) {
+                        if (stats.isFile()) {
                             await unlinkSync(filePath);
                             console.log('Successfully cleared tmp:', filePath);
                             return filePath;
@@ -971,7 +972,7 @@ folder = folder || './' + authFolder;
             try {
                 const filePath = path.join(folder, file);
                 const stats = await statSync(filePath);
-                if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 120 && file !== 'creds.json') {
+                if (stats.isFile() && file !== 'creds.json') {
                     await unlinkSync(filePath);
                     console.log('Deleted session:', filePath);
                     return filePath;
@@ -1001,13 +1002,13 @@ async function executeActions() {
             try { await func(); console.log(chalk.bold[color](message)); await delay(3000); }
             catch (error) { console.error(chalk.bold.red(`Error: ${error.message}`)); }
         }
-        await delay(3600000);
+        await delay(120 * 60 * 1000);
     }
 }
 
 executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error)).finally(() => console.log("Finally block executed."));
 
-global.Libs = {};
+global.lib = {};
 
 const libFiles = async (dir, currentPath = '') => {
   try {
@@ -1020,7 +1021,7 @@ const libFiles = async (dir, currentPath = '') => {
       if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
           const { default: module } = await import(filePath);
-          setNestedObject(global.Libs, relativePath.slice(0, -3), module || (await import(filePath)));
+          setNestedObject(global.lib, relativePath.slice(0, -3), module || (await import(filePath)));
         } catch (importErr) {
           console.error(`Error importing ${relativePath}:`, importErr);
         }
@@ -1038,7 +1039,7 @@ const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, 
   acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
 
 libFiles(path.join(process.cwd(), 'lib'))
-  .then(() => console.log(chalk.bold.green('Created Global Libs Successfully!')))
+  .then(() => console.log(chalk.bold.green('Created Global Lib Successfully!')))
   .catch((err) => console.error(chalk.bold.red('Unhandled error:'), err));
 
 function clockString(ms) {
