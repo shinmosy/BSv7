@@ -22,6 +22,7 @@ let handler = async (m, {
     ]
     let spas = "                "
     let [feature, inputs, inputs_, inputs__, inputs___] = text.split(" ")
+    feature = feature || lister.getRandom()
     if (!lister.includes(feature.toLowerCase())) return m.reply("*Example:*\n" + usedPrefix + command + " v2 link\n\n*Pilih type yg ada*\n" + lister.map((v, index) => "  ○ " + v.toUpperCase()).join("\n"))
 
     if (lister.includes(feature)) {
