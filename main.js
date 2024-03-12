@@ -477,11 +477,8 @@ async function connectionUpdate(update) {
 await delay(3000);
             const messg = await conn.sendMessage(
                 `${nomorown}@s.whatsapp.net`,
-                { text: infoMsg },
-                { quoted: null,
-                    contextInfo: {
-                        mentionedJid: [nomorown + '@s.whatsapp.net', jid]
-                    },
+                { text: infoMsg, mentions: [nomorown + '@s.whatsapp.net', jid] },
+                { quoted: null
               }
             );
             if (!messg) return conn.logger.error(`Error Connection'\n${format(e)}'`);
