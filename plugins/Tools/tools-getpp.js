@@ -1,12 +1,21 @@
-const handler = async (m, { usedPrefix, command }) => {
+const handler = async (m, { text, conn }) => {
     try {
-        const who = m.quoted?.sender || m.quoted?.key?.remoteJid || m.quoted?.vM?.key?.remoteJid || m.mentionedJid?.[0] || m.sender || m.key.remoteJid || m.chat;
-        const url = await conn.profilePictureUrl(who, 'image');
-        await conn.sendFile(m.chat, url, 'profile.jpg', `@${who.split('@')[0]}`, m, null, {
-            mentions: [who]
-        });
-    } catch (e) {
-        console.error(e);
+        const whoSet = new Set([
+            ...(await conn.parseMention(text)),
+            m.mentionedJid?.[0],
+            m.quoted?.sender || m.quoted?.key?.remoteJid || m.quoted?.vM?.key?.remoteJid || m.sender || m.chat || m.key.remoteJid
+        ].filter(Boolean));
+
+        for (const who of whoSet) {
+            const response = await conn.profilePictureUrl(who, 'image');
+            await conn.sendFile(m.chat, response, 'profile.jpg', `Profile: @${who.split('@')[0]}`, m, null, {
+                mentions: [who]
+            });
+        }
+
+        whoSet.clear();
+    } catch (error) {
+        console.error(error);
     }
 };
 

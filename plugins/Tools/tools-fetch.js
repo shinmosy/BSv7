@@ -39,7 +39,7 @@ const fetchers = [
 
 const handler = async (m, { conn, args }) => {
   const startTime = Date.now();
-  const inputText = args?.length >= 1 ? args.join(' ') : m.quoted?.text || '';
+  const inputText = args?.length >= 1 ? args.join(' ') : m.quoted?.text || m.quoted?.caption || (m.getQuotedObj()).message?.imageMessage?.caption || (m.getQuotedObj()).message?.videoMessage?.caption || (m.quoted.fakeObj).message?.imageMessage?.caption || (m.quoted.fakeObj).message?.videoMessage?.caption || m.text || '';
   const totalLinks = [...new Set([...inputText.matchAll(urlRegexSafe(urlRegexOptions))].map(match => normalizeUrl(match[0])))].filter(Boolean);
 
   const fetchLink = async (url, origin) => {
