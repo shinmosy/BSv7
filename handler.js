@@ -1032,7 +1032,7 @@ export async function handler(chatUpdate) {
         if (opts["pconly"] && m.chat.endsWith("g.us")) return;
         if (opts["gconly"] && !m.chat.endsWith("g.us")) return;
         if (opts["swonly"] && m.chat !== "status@broadcast") return;
-
+        
         if (m.isBaileys)
             return;
         m.exp += Math.ceil(Math.random() * 10)
@@ -1142,6 +1142,7 @@ export async function handler(chatUpdate) {
 
                 if (!isAccept) continue
                 m.plugin = name
+                
                 if (m.chat in global.db.data.chats || m.sender in global.db.data.users || this.user.jid in global.db.data.settings) {
                     let chat = global.db.data.chats[m.chat]
                     let user = global.db.data.users[m.sender]
@@ -1170,6 +1171,16 @@ export async function handler(chatUpdate) {
                         continue
                     }
                 }
+                global.plugins = global.plugins || {};
+global.db.data.stats = global.db.data.stats || {};
+
+for (const [key, { total, success }] of Object.entries(global.db.data.stats)) {
+  if (total > success && (!global.plugins[key] || global.plugins[key].error !== true)) {
+    global.plugins[key] = { ...(global.plugins[key] || {}), error: true };
+  } else if (total === success && global.plugins[key]?.error === true) {
+    global.plugins[key].error = false;
+  }
+}
                 if (
     (plugin.rowner && !(isROwner || isOwner) && (fail("owner", m, this), true)) ||
     (plugin.rowner && !isROwner && (fail("rowner", m, this), true)) ||
@@ -1182,9 +1193,11 @@ export async function handler(chatUpdate) {
     (plugin.private && m.isGroup && (fail("private", m, this), true)) ||
     (plugin.register && !_user.registered && (fail("unreg", m, this), true)) ||
     (plugin.nsfw && global.db.data.chats[m.chat].nsfw && (fail("nsfw", m, this), true)) ||
+    (global.plugins[name].error && (fail("error", m, this), true)) ||
     (opts['antirpg'] && global.db.data.settings[this.user.jid].antirpg && plugin.tags && plugin.tags.includes("rpg") && (fail("rpg", m, this), true))
 ) return false;
                 m.isCommand = true
+                
                 let xp = "exp" in plugin ? parseInt(plugin.exp) : 17 // XP Earning per command
                 if (xp > 200)
                     this.sendMessage(m.chat, {
@@ -1314,8 +1327,10 @@ export async function handler(chatUpdate) {
                     stat.lastSuccess = now
                 }
             }
+            
         }
-
+        
+        
         try {
             if (!opts["noprint"] || global.db.data.settings[this.user.jid].noprint) await (await import("./lib/print.js")).default(m, this)
         } catch (e) {
@@ -1668,6 +1683,8 @@ ${userTag} NSFW tidak aktif, Silahkan hubungi Team Bot Discussion untuk mengakti
 ${userTag} RPG tidak aktif, Silahkan hubungi Team Bot Discussion Untuk mengaktifkan fitur ini !`,
         restrict: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\n
 ${userTag} Fitur ini di *disable* !`,
+error: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ғɪᴛᴜʀ ᴇʀʀᴏʀ*\n
+${userTag} Fitur ini sedang *error/tidak bisa dipakai* !`,
 
         self: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\nMode: *self*`,
         pconly: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\nMode: *pconly*`,
@@ -1687,12 +1704,26 @@ ${userTag} Fitur ini di *disable* !`,
             },
         }
     )
-
 }
-
 let file = global.__filename(import.meta.url, true)
 watchFile(file, async () => {
     unwatchFile(file)
     console.log(chalk.redBright("Update handler.js"))
-    if (global.reloadHandler) console.log(await global.reloadHandler())
+    if (global.reloadHandler) console.log(await global.reloadHandler(true))
 })
+
+process.on('uncaughtException', err => {
+    console.error(chalk.bold.red('Uncaught Exception:'), err);
+});
+
+process.on('rejectionHandled', promise => {
+    console.error(chalk.bold.red('Rejection Handled:'), promise);
+});
+
+process.on('warning', warning => {
+    console.warn(chalk.bold.yellow('Warning:'), warning);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
+});

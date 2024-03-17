@@ -75,8 +75,8 @@ const {
     makeCacheableSignalKeyStore,
     jidNormalizedUser,
     proto,
-    PHONENUMBER_MCC,
     delay,
+    PHONENUMBER_MCC,
     DisconnectReason,
     useMultiFileAuthState,
     makeInMemoryStore
@@ -143,8 +143,19 @@ const {
 } = lodash
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
 
-protoType()
-serialize()
+const doTask = async () => {
+    try {
+        await protoType();
+        await delay(2000);
+        await serialize();
+    } catch (error) {
+        console.error('Terjadi kesalahan:', error.message);
+    }
+};
+
+doTask().catch(error => {
+    console.error('Terjadi kesalahan saat menjalankan tugas:', error.message);
+});
 
 global.API = Helper.API
 global.timestamp = {
@@ -155,42 +166,58 @@ const directoryName = global.__dirname(import.meta.url)
 global.opts = new Object(Helper.opts)
 
 global.prefix = Helper.prefix;
-global.db = new Low(
-    /https?:\/\//.test(opts['db'] || '') ?
-    new cloudDBAdapter(opts['db']) : /mongodb(\+srv)?:\/\//i.test(opts['db']) ?
-    (opts['mongodbv2'] ? new mongoDBV2(opts['db']) : new mongoDB(opts['db'])) :
-    new JSONFile(`${opts._[0] ? opts._[0] + '_' : ''}database.json`)
-)
 
+const dbUrl = opts.db || '';
+const dbInstance = /https?:\/\//.test(dbUrl)
+  ? new cloudDBAdapter(dbUrl)
+  : /mongodb(\+srv)?:\/\//i.test(dbUrl)
+  ? opts.mongodbv2
+    ? new mongoDBV2(dbUrl)
+    : new mongoDB(dbUrl)
+  : new JSONFile(opts._[0] ? `${opts._[0]}_database.json` : 'database.json');
+global.db = new Low(dbInstance);
 global.DATABASE = global.db;
-global.loadDatabase = async function loadDatabase() {
-    if (global.db.READ) return new Promise((resolve) => setInterval(async function() {
+
+global.loadDatabase = async () => {
+  if (global.db.READ) {
+    await new Promise((resolve) => {
+      const interval = setInterval(async () => {
         if (!global.db.READ) {
-            clearInterval(this)
-            resolve(global.db.data == null ? global.loadDatabase() : global.db.data)
+          clearInterval(interval);
+          resolve(global.db.data || global.loadDatabase());
         }
-    }, 1 * 1000))
-    if (global.db.data !== null) return
-    global.db.READ = true
-    await global.db.read().catch(console.error)
-    global.db.READ = null
+      }, 1000);
+    });
+  }
+
+  try {
+    global.db.READ = true;
+    await global.db.read();
+    console.log('Database loaded');
+  } catch (error) {
+    console.error('Error loading database:', error.message);
+  } finally {
+    global.db.READ = null;
     global.db.data = {
-        users: {},
-        chats: {},
-        stats: {},
-        msgs: {},
-        sticker: {},
-        settings: {},
-        ...(global.db.data || {})
-    }
-    global.db.chain = chain(global.db.data)
-}
+      users: {},
+      chats: {},
+      stats: {},
+      msgs: {},
+      sticker: {},
+      settings: {},
+      ...(global.db.data || {}),
+    };
+    global.db.chain = global.db.chain || chain(global.db.data);
+  }
+
+  return global.db.data;
+};
 
 const {
     version,
     isLatest
 } = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
-console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
+console.log(`Using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
 if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     const title = "OPTIONS";
@@ -210,8 +237,6 @@ if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     text-align: left;
 `]);
     console.log(chalk.bold.blue(`\n🚩 ${chalk.bold.blue('Example:')} ${chalk.bold.yellow('node . --pairing-code')}`));
-
-    process.exit(1);
 }
 
 global.authFolder = storeSystem.fixFileName(`${Helper.opts._[0] || ''}TaylorSession`)
@@ -224,23 +249,22 @@ var [
 ] = await Promise.all([
     Helper.checkFilesExist(authFolder + '/creds.json'),
     Helper.checkFilesExist(authFile),
-    useMultiFileAuthState(authFolder)
+    storeSystem.useMultiFileAuthState(authFolder)
 ])
 
 const logger = Pino({
     level: "silent"
 });
-global.store = makeInMemoryStore({
+global.store = storeSystem.makeInMemoryStore({
     logger
 })
 
-// Convert single auth to multi auth
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
     if (!isCredsExist && isAuthSingleFileExist) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await useMultiFileAuthState(authFolder);
+        authState = await storeSystem.useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -438,17 +462,21 @@ async function connectionUpdate(update) {
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
     if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
-        conn.logger.info(await global.reloadHandler(true).catch(console.error));
+        await global.reloadHandler(true).then(result => {
+        console.log('Reload Handler', result);
+    })
+    .catch(error => {
+        console.error('Error saat Reload Handler', error.message);
+    });
     }
     if (global.db.data == null) loadDatabase();
 
     if (connection === 'connecting') {
         global.connectionAttempts++
-        console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
+        console.log(chalk.bold.yellowBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
 
         if (global.connectionAttempts >= 5) {
             console.log(chalk.bold.redBright('Tidak bisa terhubung. Kemungkinan akun Anda di banned.'));
-            process.exit(1);
         }
     }
 
@@ -465,16 +493,16 @@ async function connectionUpdate(update) {
             const pingSpeed = pingStart - currentTime;
             const formattedPingSpeed = pingSpeed < 0 ? 'N/A' : `${pingSpeed}ms`;
 
-            const infoMsg = `🤖 *Bot Info* 🤖
-🕰️ *Current Time:* ${currentTime}
-👤 *Name:* *${name || 'Taylor'}*
-🏷️ *Tag:* *@${jid.split('@')[0]}*
-⚡ *Ping Speed:* *${formattedPingSpeed}*
-📅 *Date:* ${currentTime.toDateString()}
-🕒 *Time:* ${currentTime.toLocaleTimeString()}
-📆 *Day:* ${currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
-📝 *Description:* Bot *${name || 'Taylor'}* is now active.`;
-await delay(3000);
+            const infoMsg = `- 🤖 *Bot Info* 🤖
+- 🕰️ *Current Time:* ${currentTime}
+- 👤 *Name:* *${name || 'Taylor'}*
+- 🏷️ *Tag:* *@${jid.split('@')[0]}*
+- ⚡ *Ping Speed:* *${formattedPingSpeed}*
+- 📅 *Date:* ${currentTime.toDateString()}
+- 🕒 *Time:* ${currentTime.toLocaleTimeString()}
+- 📆 *Day:* ${currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
+- 📝 *Description:* Bot *${name || 'Taylor-V2'}* is now active.`;
+await delay(2000);
             const messg = await conn.sendMessage(
                 `${nomorown}@s.whatsapp.net`,
                 { text: infoMsg, mentions: [nomorown + '@s.whatsapp.net', jid] },
@@ -499,49 +527,27 @@ await delay(3000);
 
     if (!pairingCode && !useMobile && qr !== 0 && qr !== undefined && connection === 'close') {
         conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
-        process.exit(1);
     }
 
     if (!pairingCode && !useMobile && useQr && qr !== 0 && qr !== undefined && connection === 'close') {
         conn.logger.info(chalk.bold.yellow(`\n🚩ㅤPindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
-        process.exit(1);
     }
 
 }
-
-global.loggedErrors = new Set();
-
-process.on('uncaughtException', err => {
-    if (!global.loggedErrors.has(err)) {
-        console.error(chalk.bold.red.bold('Uncaught Exception:'), err);
-        global.loggedErrors.add(err);
-    }
-});
-
-process.on('rejectionHandled', promise => {
-    if (!global.loggedErrors.has(promise)) {
-        console.error(chalk.bold.red.bold('Rejection Handled:'), promise);
-        global.loggedErrors.add(promise);
-    }
-});
-
-process.on('warning', warning => console.warn(chalk.bold.yellow.bold('Warning:'), warning));
-
-process.on('unhandledRejection', (reason, promise) => {
-    if (!global.loggedErrors.has(reason)) {
-        console.error(chalk.bold.red.bold('Unhandled Rejection:'), reason);
-        global.loggedErrors.add(reason);
-    }
-});
 
 let isInit = true;
 let handler = await import('./handler.js');
 global.reloadHandler = async function(restatConn) {
     try {
-        const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error);
+        const Handler = await import(`./handler.js?update=${Date.now()}`).then(result => {
+        console.log('Reload Handler', result);
+    })
+    .catch(error => {
+        console.error('Error saat Reload Handler', error.message);
+    });
         if (Object.keys(Handler || {}).length) handler = Handler;
     } catch (error) {
-        console.error;
+        console.error('Error saat Reload Handler', error.message);
     }
     if (restatConn) {
         const oldChats = global.conn.chats;
@@ -671,7 +677,7 @@ async function filesInit() {
     try {
         const messg = await conn.sendMessage(
             nomorown + '@s.whatsapp.net', { text:
-            `🤖 *Loaded Plugins Report* 🤖\n` +
+            `- 🤖 *Loaded Plugins Report* 🤖\n` +
             `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
             `✅ *Success:* ${successMessages.length}\n` +
             `❌ *Error:* ${errorMessages.length}\n` +
@@ -816,7 +822,7 @@ let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambung
 do {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await delay(3000);
+    await delay(2000);
 } while (!conn);
 
 connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
@@ -852,25 +858,29 @@ const executeStep = async (step, index) => {
     }
 };
 
-await Promise.all(steps.map(executeStep))
+await Promise.allSettled(steps.map(executeStep))
     .then(results => {
         results.forEach(result => {
-            if (typeof result === 'string') {
-                console.error(chalk.bold.red(result));
+            if (result.status === 'fulfilled') {
+                const value = result.value;
+                if (typeof value === 'string') {
+                    console.error(chalk.bold.red(value));
+                }
+            } else if (result.status === 'rejected') {
+                const reason = result.reason;
+                console.error(chalk.bold.red(reason));
             }
         });
         mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!'));
-    })
-    .catch(error => {
-        mainSpinner.fail(chalk.bold.red(`${error}`));
     })
     .finally(() => {
         mainSpinner.stop();
     });
 
+
 async function reloadHandlerStep() {
     try {
-        await global.reloadHandler();
+        await global.reloadHandler(true);
         console.log(chalk.bold.green('Reload Handler Step selesai.'));
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
@@ -908,7 +918,7 @@ async function _quickTest() {
 
                 return await Promise.race([closePromise, errorPromise]);
             } finally {
-                process.kill();
+                // console.error("Process exit.");
             }
         }));
 
@@ -924,8 +934,9 @@ async function _quickTest() {
         };
 
         Object.freeze(global.support = support);
+        console.error(`Succes in Quick Test: ${JSON.stringify(support, null, 4)}`);
     } catch (error) {
-        console.error(`Error in Quick Test: ${error.message}`);
+        console.error(`Error in Quick Test: ${JSON.stringify(error.message, null, 4)}`);
     }
 }
 
@@ -988,19 +999,19 @@ folder = folder || './' + authFolder;
 }
 
 const actions = [
-    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
+{ func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
     { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
-    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
+    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' }
 ];
 
 async function executeActions() {
-    while (true) {
+    do {
         for (const { func, message, color } of actions) {
-            try { await func(); console.log(chalk.bold[color](message)); await delay(3000); }
+            try { await func(); console.log(chalk.bold[color](message)); await delay(2000); }
             catch (error) { console.error(chalk.bold.red(`Error: ${error.message}`)); }
         }
-        await delay(120 * 60 * 1000);
-    }
+        await delay(2 * 60 * 60 * 1000);
+    } while (true)
 }
 
 executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error)).finally(() => console.log("Finally block executed."));
@@ -1047,3 +1058,19 @@ function clockString(ms) {
     }));
     return units.map(unit => `${unit.value.toString().padStart(2, '0')} ${unit.label}`).join(' ');
 }
+
+process.on('uncaughtException', err => {
+    console.error(chalk.bold.red('Uncaught Exception:'), err);
+});
+
+process.on('rejectionHandled', promise => {
+    console.error(chalk.bold.red('Rejection Handled:'), promise);
+});
+
+process.on('warning', warning => {
+    console.warn(chalk.bold.yellow('Warning:'), warning);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
+});
