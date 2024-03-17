@@ -1,4 +1,5 @@
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+
 import {
     loadConfig
 } from './config.js';
@@ -437,6 +438,37 @@ if (useMobile && !conn.authState.creds.registered) {
 }
 
 conn.logger.info('\n🚩 W A I T I N G\n');
+process.on('exit', (code) => {
+    console.error(chalk.red(`Exited with code: ${code}`));
+    process.exit(1);
+});
+
+process.on('SIGINT', () => {
+    console.log(chalk.yellow('Received SIGINT. Stopping the execution.'));
+    process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+    console.log(chalk.red('Received SIGTERM. Exiting gracefully.'));
+    process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error(chalk.bold.red('Uncaught Exception:'), err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
+    console.error(chalk.bold.red('Promise:'), promise);
+});
+
+process.on('warning', (warning) => {
+    console.warn(chalk.bold.yellow('Warning:'), warning);
+});
+
+process.on('rejectionHandled', (promise) => {
+    console.error(chalk.bold.red('Rejection Handled:'), promise);
+});
 
 if (!opts['test']) {
     if (global.db) {
@@ -643,7 +675,7 @@ async function filesInit() {
 
         try {
             const { default: module } = await import(file);
-            global.plugins[moduleName] = (module || (await import(file)));
+            global.plugins[moduleName] = module || (await import(file));
             return moduleName;
         } catch (e) {
             conn.logger.error(e);
@@ -656,18 +688,20 @@ async function filesInit() {
         }
     });
 
-    const results = await Promise.all(importPromises);
+    const results = await Promise.allSettled(importPromises);
 
     const successMessages = results
-        .filter(result => typeof result === 'string')
-        .sort((a, b) => a.localeCompare(b));
+        .filter((result) => result.status === 'fulfilled' && typeof result.value === 'string')
+        .map((result) => result.value)
+        .sort();
 
     const errorMessages = results
-        .filter(result => typeof result === 'object')
+        .filter((result) => result.status === 'rejected' && typeof result.reason === 'object')
+        .map((result) => result.reason)
         .sort((a, b) => a.moduleName.localeCompare(b.moduleName));
 
     global.plugins = Object.fromEntries(
-        Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
+        Object.entries(global.plugins).sort((a, b) => a[0].localeCompare(b[0]))
     );
 
     conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
@@ -676,20 +710,31 @@ async function filesInit() {
 
     try {
         const messg = await conn.sendMessage(
-            nomorown + '@s.whatsapp.net', { text:
-            `- 🤖 *Loaded Plugins Report* 🤖\n` +
-            `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
-            `✅ *Success:* ${successMessages.length}\n` +
-            `❌ *Error:* ${errorMessages.length}\n` +
-            (errorMessages.length > 0 ?
-                `  ❗ *Errors:* ${errorMessages.map((error, index) => `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`).join('')}\n` : '') },
+            nomorown + '@s.whatsapp.net',
+            {
+                text: `- 🤖 *Loaded Plugins Report* 🤖\n` +
+                    `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
+                    `✅ *Success:* ${successMessages.length}\n` +
+                    `❌ *Error:* ${errorMessages.length}\n` +
+                    (errorMessages.length > 0
+                        ? `  ❗ *Errors:* ${errorMessages
+                              .map(
+                                  (error, index) =>
+                                      `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`
+                              )
+                              .join('')}\n`
+                        : ''),
+            },
             { quoted: null }
         );
-        if (!messg) return conn.logger.error(`Error load plugin '\n${format(e)}'`);
+
+        if (!messg) {
+            conn.logger.error(`Error sending message`);
+        }
     } catch (e) {
-        conn.logger.error(`Error load plugin '\n${format(e)}'`);
+        conn.logger.error(`Error sending message: ${e}`);
     }
-}
+};
 
 global.reload = async (_ev, filename) => {
     if (pluginFilter(filename)) {
@@ -844,17 +889,17 @@ const mainSpinner = ora({
 }).start();
 
 const executeStep = async (step, index) => {
-    mainSpinner.text = chalk.bold.yellow(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} sedang berlangsung...`);
+    mainSpinner.text = chalk.bold.yellow(`Sedang memproses langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}...`);
     await delay(index * 3000);
 
     try {
         const result = await step();
-        mainSpinner.succeed(chalk.bold.green(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!`));
+        mainSpinner.succeed(chalk.bold.green(`Langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!`));
         return result;
     } catch (error) {
-        mainSpinner.fail(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
-        console.error(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
-        return `Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`;
+        mainSpinner.fail(chalk.bold.red(`Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
+        console.error(chalk.bold.red(`Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
+        return `Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`;
     }
 };
 
@@ -871,12 +916,11 @@ await Promise.allSettled(steps.map(executeStep))
                 console.error(chalk.bold.red(reason));
             }
         });
-        mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!'));
+        mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
     })
     .finally(() => {
         mainSpinner.stop();
     });
-
 
 async function reloadHandlerStep() {
     try {
@@ -1057,20 +1101,4 @@ function clockString(ms) {
         value: Math.floor(i < 2 ? ms / (86400000 / [1, 24][i]) : ms / [60000, 1000][i - 2]) % ([1, 60][i < 2 ? 0 : 1])
     }));
     return units.map(unit => `${unit.value.toString().padStart(2, '0')} ${unit.label}`).join(' ');
-}
-
-process.on('uncaughtException', err => {
-    console.error(chalk.bold.red('Uncaught Exception:'), err);
-});
-
-process.on('rejectionHandled', promise => {
-    console.error(chalk.bold.red('Rejection Handled:'), promise);
-});
-
-process.on('warning', warning => {
-    console.warn(chalk.bold.yellow('Warning:'), warning);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
-});
+};

@@ -57,6 +57,7 @@
         "axios": "*",
         "booru": "*",
         "brainly-scraper-v2": "*",
+        "cfonts": "*",
         "chalk": "*",
         "cheerio": "*",
         "child_process": "*",

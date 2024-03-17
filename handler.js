@@ -1711,19 +1711,3 @@ watchFile(file, async () => {
     console.log(chalk.redBright("Update handler.js"))
     if (global.reloadHandler) console.log(await global.reloadHandler(true))
 })
-
-process.on('uncaughtException', err => {
-    console.error(chalk.bold.red('Uncaught Exception:'), err);
-});
-
-process.on('rejectionHandled', promise => {
-    console.error(chalk.bold.red('Rejection Handled:'), promise);
-});
-
-process.on('warning', warning => {
-    console.warn(chalk.bold.yellow('Warning:'), warning);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
-});
