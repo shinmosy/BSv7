@@ -55,11 +55,12 @@ const defaultMenu = {
 %m4 *Ⓞ* = Owner
 %m4 *🅟* = Premium
 %m4 *Ⓛ* = Limit
+%m4 *❌* = Error
 %m3
 %readmore
 `.trimStart(),
     header: "%cc *%category* %c1",
-    body: "%c2 %cmd %isGroup %isPrivate %isOwner %isPremium %isLimit",
+    body: "%c2 %cmd %isGroup %isPrivate %isOwner %isPremium %isLimit %isError",
     footer: "%c3",
     after: "%c4         %me",
 };
@@ -347,6 +348,7 @@ let handler = async (m, {
                                 .replace(/%isOwner/g, menu.owner ? "Ⓞ" : "")
                                 .replace(/%isPremium/g, menu.premium ? "🅟" : "")
                                 .replace(/%isLimit/g, menu.limit ? "Ⓛ" : "")
+                                .replace(/%isError/g, menu.error ? "❌" : "")
                                 .replace(/<([^>]*)>/g, "[$1]")
                                 .trim()
                         }).join("\n")
