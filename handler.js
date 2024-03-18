@@ -1120,26 +1120,29 @@ export async function handler(chatUpdate) {
                     continue
             }
             if (typeof plugin !== "function") continue
-            if ((usedPrefix = (match[0] || "")[0])) {
-                let noPrefix = m.text.replace(usedPrefix, "")
-                let args_v2 = m.text.slice(usedPrefix.length).trim().split(/ +/)
-                let [command, ...args] = noPrefix.trim().split(" ").filter(v => v)
-                args = args || []
-                let _args = noPrefix.trim().split(" ").slice(1)
-                let text = _args.join` `
-                command = (command || "").toLowerCase()
-                let fail = plugin.fail || global.dfail // When failed
-                let isAccept = plugin.command instanceof RegExp ? // RegExp Mode?
-                    plugin.command.test(command) :
-                    Array.isArray(plugin.command) ? // Array?
-                    plugin.command.some(cmd => cmd instanceof RegExp ? // RegExp in Array?
-                        cmd.test(command) :
-                        cmd === command
-                    ) :
-                    typeof plugin.command === "string" ? // String?
-                    plugin.command === command :
-                    false
+            
+            if (m.text) {
+    usedPrefix = ((opts?.['multiprefix'] ?? true) && (match[0] || "")[0]) || ((opts?.['noprefix'] ?? false) ? null : (match[0] || "")[0]);
+let noPrefix = !usedPrefix ? m.text : m.text.replace(usedPrefix, "");
+let args_v2 = noPrefix.trim().split(/ +/);
+let [command, ...args] = noPrefix.trim().split(" ").filter(v => v);
+args = args || [];
+let _args = noPrefix.trim().split(" ").slice(1);
+let text = _args.join(" ");
+command = (command || "").toLowerCase();
 
+let fail = plugin.fail || global.dfail; // When failed
+
+const prefixCommand = (!usedPrefix ? (plugin.customPrefix || plugin.command) : plugin.command);
+let isAccept =
+    (prefixCommand instanceof RegExp && prefixCommand.test(command)) ||
+    (Array.isArray(prefixCommand) &&
+        prefixCommand.some(cmd =>
+            cmd instanceof RegExp ? cmd.test(command) : cmd === command
+        )) ||
+    (typeof prefixCommand === "string" && prefixCommand === command);
+    m.prefix = !!usedPrefix;
+usedPrefix = !usedPrefix ? '' : usedPrefix;
                 if (!isAccept) continue
                 m.plugin = name
                 
@@ -1175,9 +1178,10 @@ export async function handler(chatUpdate) {
 global.db.data.stats = global.db.data.stats || {};
 
 for (const [key, { total, success }] of Object.entries(global.db.data.stats)) {
-  if (total > success && (!global.plugins[key] || global.plugins[key].error !== true)) {
+  const difference = total - success;
+  if (difference > 3 && (!global.plugins[key] || global.plugins[key].error !== true)) {
     global.plugins[key] = { ...(global.plugins[key] || {}), error: true };
-  } else if (total === success && global.plugins[key]?.error === true) {
+  } else if ((difference <= 3 && difference >= 0) && global.plugins[key]?.error === true) {
     global.plugins[key].error = false;
   }
 }
@@ -1198,7 +1202,7 @@ for (const [key, { total, success }] of Object.entries(global.db.data.stats)) {
 ) return false;
                 m.isCommand = true
                 
-                let xp = "exp" in plugin ? parseInt(plugin.exp) : 17 // XP Earning per command
+                let xp = "exp" in plugin ? parseInt(plugin.exp) : 20 // XP Earning per command
                 if (xp > 200)
                     this.sendMessage(m.chat, {
                         text: `[❗] *Sepertinya Anda Bermain Curang, Menggunakan Calculator*`,
@@ -1293,43 +1297,34 @@ for (const [key, { total, success }] of Object.entries(global.db.data.stats)) {
 			this.msgqueque.unqueue(id)
 		}
         //console.log(global.db.data.users[m.sender])
-        let user, stats = global.db.data.stats
-        if (m) {
-            if (m.sender && (user = global.db.data.users[m.sender])) {
-                user.exp += m.exp
-                user.limit -= m.limit * 1
-            }
+        let { user, stats } = global.db.data;
 
-            let stat
-            if (m.plugin) {
-                let now = +new Date
-                if (m.plugin in stats) {
-                    stat = stats[m.plugin]
-                    if (!isNumber(stat.total))
-                        stat.total = 1
-                    if (!isNumber(stat.success))
-                        stat.success = m.error != null ? 0 : 1
-                    if (!isNumber(stat.last))
-                        stat.last = now
-                    if (!isNumber(stat.lastSuccess))
-                        stat.lastSuccess = m.error != null ? 0 : now
-                } else
-                    stat = stats[m.plugin] = {
-                        total: 1,
-                        success: m.error != null ? 0 : 1,
-                        last: now,
-                        lastSuccess: m.error != null ? 0 : now
-                    }
-                stat.total += 1
-                stat.last = now
-                if (m.error == null) {
-                    stat.success += 1
-                    stat.lastSuccess = now
-                }
-            }
-            
-        }
-        
+if (m && m.sender) {
+    user = global.db.data.users[m.sender];
+    if (user) {
+        user.exp = (user.exp || 0) + (m.exp || 0);
+        user.limit = (user.limit || 0) - (m.limit || 0);
+    }
+}
+
+if (m && m.plugin) {
+    let now = +new Date();
+    stats = global.db.data.stats;
+    if (m.plugin in stats) {
+        let stat = stats[m.plugin];
+        stat.total = !Number.isNaN(stat.total) ? stat.total + 1 : 1;
+        stat.success = !Number.isNaN(stat.success) ? (m.error != null ? stat.success : stat.success + 1) : (m.error != null ? 0 : 1);
+        stat.last = now;
+        stat.lastSuccess = !Number.isNaN(stat.lastSuccess) ? (m.error != null ? stat.lastSuccess : now) : (m.error != null ? 0 : now);
+    } else {
+        stats[m.plugin] = {
+            total: 1,
+            success: m.error != null ? 0 : 1,
+            last: now,
+            lastSuccess: m.error != null ? 0 : now
+        };
+    }
+}
         
         try {
             if (!opts["noprint"] || global.db.data.settings[this.user.jid].noprint) await (await import("./lib/print.js")).default(m, this)
@@ -1581,7 +1576,7 @@ export async function pollUpdate(message) {
         }
         of message) {
         if (message.pollUpdates) {
-            const pollCreation = await this.serializeM(this.loadMessage(key.id))
+            const pollCreation = this.serializeM(this.loadMessage(key.id))
             if (pollCreation) {
                 const pollMessage = await getAggregateVotesInPollMessage({
                     message: pollCreation.message,
@@ -1685,7 +1680,6 @@ ${userTag} RPG tidak aktif, Silahkan hubungi Team Bot Discussion Untuk mengaktif
 ${userTag} Fitur ini di *disable* !`,
 error: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ғɪᴛᴜʀ ᴇʀʀᴏʀ*\n
 ${userTag} Fitur ini sedang *error/tidak bisa dipakai* !`,
-
         self: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\nMode: *self*`,
         pconly: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\nMode: *pconly*`,
         gconly: `*${emoji.restrict} ᴘᴇʀʜᴀᴛɪᴀɴ ᴛɪᴅᴀᴋ ᴀᴋᴛɪꜰ*\nMode: *gconly*`,
