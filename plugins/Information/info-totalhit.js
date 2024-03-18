@@ -1,20 +1,25 @@
 const handler = async (m, { conn }) => {
-  const stats = Object.entries(global.db.data.stats)
-    .map(([key, val]) => ({
-      name: Array.isArray(global.plugins[key]?.help)
-        ? global.plugins[key]?.help.join(' , ')
-        : global.plugins[key]?.help || key,
-      ...val
-    }))
-    .filter(({ name }) => !/exec/.test(name))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 50)
-    .map(({ name, total, last, success, lastSuccess }, i) => (
-      `*${i + 1}.* ( *${name.split(' ')[0]}* )\n-   *Hits*: \`${total}\`\n-   *Success*: \`${success}\`\n-   *Last Used*: \`${getTime(last)}\`\n-   *Last Success*: \`${formatTime(lastSuccess)}\``
-    ))
-    .join('\n\n');
+  try {
+    const stats = Object.entries(global.db.data.stats)
+      .map(([key, val]) => ({
+        name: Array.isArray(global.plugins[key]?.help)
+          ? global.plugins[key]?.help.join(' , ')
+          : global.plugins[key]?.help || key.split('/').pop().slice(0, -3),
+        ...val
+      }))
+      .filter(({ name }) => !/exec/.test(name))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 50)
+      .map(({ name, total, last, success, lastSuccess }, i) => (
+        `*${i + 1}.* ( *${name.split(' ')[0]}* )\n-   *Hits*: \`${total}\`\n-   *Success*: \`${success}\`\n-   *Last Used*: \`${getTime(last)} ago\`\n-   *Last Success*: \`${formatTime(lastSuccess)}\``
+      ))
+      .join('\n\n');
 
-  conn.sendMessage(m.chat, { text: stats }, { quoted: m });
+    conn.reply(m.chat, stats, m);
+  } catch (error) {
+    console.error(error);
+    conn.reply(m.chat, 'Terjadi kesalahan dalam pemrosesan data.', m);
+  }
 };
 
 handler.command = handler.help = ['totalhit'];
