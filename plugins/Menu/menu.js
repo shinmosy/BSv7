@@ -13,6 +13,10 @@ import moment from "moment-timezone"
 import os from "os"
 import fs from "fs"
 import fetch from "node-fetch"
+const {
+    fetchLatestBaileysVersion,
+    fetchLatestWaWebVersion
+} = await (await import("@whiskeysockets/baileys")).default;
 
 const defaultMenu = {
     before: `\`.\`         %dash
@@ -41,9 +45,9 @@ const defaultMenu = {
 %m2 *Bot Name:* %me
 %m2 *Mode:* %mode
 %m2 *Platform:* %platform
-%m2 *Type:* Node.Js
-%m2 *Baileys:* Multi Device
-%m2 *Prefix:* [ *%_p* ]
+%m2 *Type:* %processName
+%m2 *Baileys:* %bailVer
+%m2 *Prefix:* %_p [ %isPrefix ]
 %m2 *Uptime:* %muptime
 %m2 *Database:* %rtotalreg dari %totalreg
 %m3
@@ -71,6 +75,13 @@ let handler = async (m, {
     __dirname,
     args
 }) => {
+let isPrefix = m.prefix ? "Multi" : "No";
+const {
+    version
+} = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
+const bailVer = `V${version.join(".")}`;
+const processName = `${process.title.split('/').pop().toUpperCase()}, ${(process.version).toUpperCase()}`;
+
     let soun = ["aku-ngakak",
         "anjay",
         "ara-ara2",
@@ -390,6 +401,9 @@ let handler = async (m, {
             wita,
             mode,
             _p,
+            isPrefix,
+            bailVer,
+            processName,
             money,
             age,
             tag,
