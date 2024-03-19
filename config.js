@@ -18,10 +18,6 @@ import fetch from 'node-fetch';
 import axios from 'axios';
 import { fetch as undiciFetch } from 'undici';
 import got from 'got';
-const {
-    Promise: makePromise
-} = await (await import("bluebird")).default;
-makePromise.config({ longStackTraces: true, warnings: true, cancellation: true, monitoring: true });
 
 async function loadConfig() {
     /*Oᴡɴᴇʀ number*/
@@ -146,9 +142,6 @@ async function loadConfig() {
 
     /* Global Random */
     global.doc = pickRandom(["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/msword", "application/pdf", "text/rtf"])
-    
-    
-    global.Promise = makePromise
     
     global.knimg = pickRandom(["https://minimalistic-wallpaper.demolab.com/?random", "https://picsum.photos/2560/1600", ImgMountain()])
 
@@ -304,35 +297,6 @@ async function loadConfig() {
             else return emot[results[0][0]]
         }
     }
-
-global.loggedErrors = new Set();
-
-process.on('uncaughtException', err => {
-    if (!global.loggedErrors.has(err)) {
-        console.clear();
-        console.error(chalk.bold.red.bold('Uncaught Exception:'), err);
-        global.loggedErrors.add(err);
-    }
-});
-
-process.on('rejectionHandled', promise => {
-    if (!global.loggedErrors.has(promise)) {
-        console.clear();
-        console.error(chalk.bold.red.bold('Rejection Handled:'), promise);
-        global.loggedErrors.add(promise);
-    }
-});
-
-process.on('warning', warning => console.warn(chalk.bold.yellow.bold('Warning:'), warning));
-
-process.on('unhandledRejection', (reason, promise) => {
-    if (!global.loggedErrors.has(reason)) {
-        console.clear();
-        console.error(chalk.bold.red.bold('Unhandled Rejection:'), reason);
-        global.loggedErrors.add(reason);
-    }
-});
-
 }
 
 export {

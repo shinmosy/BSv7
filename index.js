@@ -29,7 +29,7 @@ let server = null;
 
 async function start(file) {
     const app = express();
-    const port = process.env.PORT || 3000;
+    const port = process.env.PORT || process.env.SERVER_PORT || 3000;
     const htmlDir = join(__dirname, 'html');
 
     const sendHtml = (req, res, name) => res.sendFile(join(htmlDir, `${name}.html`));
@@ -39,7 +39,18 @@ async function start(file) {
     app.get('/tools', (req, res) => sendHtml(req, res, 'tools'));
     app.get('/music', (req, res) => sendHtml(req, res, 'music'));
 
-    server = app.listen(port, () => console.log(chalk.green(`🌐 Port ${port} is open`)));
+    server = app.listen(port, () => {
+  console.log(chalk.green(`🌐 Port ${port} is open`));
+});
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.log(`Address localhost:${port} in use. Please retry when the port is available!`);
+    server.close();
+  } else {
+    console.error('Server error:', error);
+  }
+});
 
     if (isRunning) return;
     isRunning = true;

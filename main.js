@@ -47,7 +47,8 @@ import {
 import chokidar from 'chokidar';
 import {
     format,
-    promisify
+    promisify,
+    inspect
 } from 'util';
 import {
     Boom
@@ -250,22 +251,24 @@ var [
 ] = await Promise.all([
     Helper.checkFilesExist(authFolder + '/creds.json'),
     Helper.checkFilesExist(authFile),
-    storeSystem.useMultiFileAuthState(authFolder)
+    (useMultiFileAuthState(authFolder) || storeSystem.useMultiFileAuthState(authFolder))
 ])
 
 const logger = Pino({
     level: "silent"
 });
-global.store = storeSystem.makeInMemoryStore({
+global.store = (makeInMemoryStore({
     logger
-})
+}) || storeSystem.makeInMemoryStore({
+    logger
+}))
 
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
     if (!isCredsExist && isAuthSingleFileExist) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = await storeSystem.useMultiFileAuthState(authFolder);
+        authState = (await useMultiFileAuthState(authFolder) || await storeSystem.useMultiFileAuthState(authFolder))
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -438,42 +441,43 @@ if (useMobile && !conn.authState.creds.registered) {
 }
 
 conn.logger.info('\n🚩 W A I T I N G\n');
-process.on('exit', (code) => {
-    console.error(chalk.red(`Exited with code: ${code}`));
+
+process.on('exit', code => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Exit Error')}\nDescription: Exited with code\nMessage: ${chalk.yellow(code)}\n`));
     process.exit(1);
 });
 
 process.on('SIGINT', () => {
-    console.log(chalk.yellow('Received SIGINT. Stopping the execution.'));
+    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGINT Error')}\nDescription: Received SIGINT. Stopping the execution.\n`));
     process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-    console.log(chalk.red('Received SIGTERM. Exiting gracefully.'));
+    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGTERM Error')}\nDescription: Received SIGTERM. Exiting gracefully.\n`));
     process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
-    console.error(chalk.bold.red('Uncaught Exception:'), err);
+process.on('uncaughtException', err => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Uncaught Exception')}\nDescription: Uncaught Exception\nMessage: ${chalk.yellow(err.message)}\nStack: ${err.stack}\n`));
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.bold.red('Unhandled Rejection:'), reason);
-    console.error(chalk.bold.red('Promise:'), promise);
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Unhandled Rejection')}\nDescription: Unhandled Rejection\nReason: ${chalk.yellow(reason)}\nPromise: ${inspect(promise)}\n`));
 });
 
-process.on('warning', (warning) => {
-    console.warn(chalk.bold.yellow('Warning:'), warning);
+process.on('warning', warning => {
+    console.warn(chalk.bold.yellow(`${chalk.bgYellow.black('Warning')}\nDescription: Warning\nMessage: ${chalk.yellow(warning.message)}\nStack: ${warning.stack}\n`));
 });
 
-process.on('rejectionHandled', (promise) => {
-    console.error(chalk.bold.red('Rejection Handled:'), promise);
+process.on('rejectionHandled', promise => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Rejection Handled')}\nDescription: Rejection Handled\nPromise: ${inspect(promise)}\n`));
 });
+
 
 if (!opts['test']) {
     if (global.db) {
         setInterval(async () => {
-            if (global.db.data) await global.db.write();
+            if (global.db.data) await global.db.write(global.db.data);
             if (opts['autocleartmp'] && (global.support || {}).find)(tmp = [os.tmpdir(), 'tmp', 'jadibot'], tmp.forEach((filename) => cp.spawn('find', [filename, '-amin', '3', '-type', 'f', '-delete'])));
         }, 30 * 1000);
     }
@@ -495,7 +499,7 @@ async function connectionUpdate(update) {
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
     if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
         await global.reloadHandler(true).then(result => {
-        console.log('Reload Handler', result);
+        console.log('Reload Handler', inspect(result));
     })
     .catch(error => {
         console.error('Error saat Reload Handler', error.message);
@@ -572,7 +576,7 @@ let handler = await import('./handler.js');
 global.reloadHandler = async function(restatConn) {
     try {
         const Handler = await import(`./handler.js?update=${Date.now()}`).then(result => {
-        console.log('Reload Handler', result);
+        console.log('Reload Handler', inspect(result));
     })
     .catch(error => {
         console.error('Error saat Reload Handler', error.message);
@@ -688,16 +692,14 @@ async function filesInit() {
         }
     });
 
-    const results = await Promise.allSettled(importPromises);
+    const results = await Promise.all(importPromises);
 
     const successMessages = results
-        .filter((result) => result.status === 'fulfilled' && typeof result.value === 'string')
-        .map((result) => result.value)
+        .filter((result) => typeof result === 'string')
         .sort();
 
     const errorMessages = results
-        .filter((result) => result.status === 'rejected' && typeof result.reason === 'object')
-        .map((result) => result.reason)
+        .filter((result) => typeof result === 'object')
         .sort((a, b) => a.moduleName.localeCompare(b.moduleName));
 
     global.plugins = Object.fromEntries(
@@ -924,8 +926,12 @@ await Promise.allSettled(steps.map(executeStep))
 
 async function reloadHandlerStep() {
     try {
-        await global.reloadHandler(true);
-        console.log(chalk.bold.green('Reload Handler Step selesai.'));
+        await global.reloadHandler(true).then(result => {
+        console.log('Reload Handler', inspect(result));
+    })
+    .catch(error => {
+        console.error('Error saat Reload Handler', error.message);
+    });
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
     }
@@ -1043,22 +1049,22 @@ folder = folder || './' + authFolder;
 }
 
 const actions = [
-{ func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
+    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
     { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
     { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' }
 ];
 
 async function executeActions() {
-    do {
-        for (const { func, message, color } of actions) {
-            try { await func(); console.log(chalk.bold[color](message)); await delay(2000); }
-            catch (error) { console.error(chalk.bold.red(`Error: ${error.message}`)); }
-        }
+    while (true) {
+        await Promise.allSettled(actions.map(({ func, message, color }) => func().then(() => console.log(chalk.bold[color](message))).catch(error => console.error(chalk.bold.red(`Error: ${error.message}`)))));
         await delay(2 * 60 * 60 * 1000);
-    } while (true)
+    }
 }
 
-executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error)).finally(() => console.log("Finally block executed."));
+executeActions()
+    .then(() => console.log("Execution completed."))
+    .catch(error => console.error("Error:", error))
+    .finally(() => console.log("Finally block executed."));
 
 global.lib = {};
 
