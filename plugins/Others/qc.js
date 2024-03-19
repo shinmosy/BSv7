@@ -7,7 +7,7 @@ const upload = new Uploader();
 
 async function Quotly(data) {
   try {
-    const response = await axios.post('https://qc.sazumi.moe/generate', data, { headers: { 'Content-Type': 'application/json' } });
+    const response = await axios.post('http://quotly.netorare.codes/generate', data, { headers: { 'Content-Type': 'application/json' } });
     return Buffer.from(response?.data?.result?.image, 'base64') || null;
   } catch (e) {
     console.error('Quotly Error:', e);
