@@ -169,14 +169,20 @@ global.opts = new Object(Helper.opts)
 
 global.prefix = Helper.prefix;
 
-const dbUrl = opts.db || '';
-const dbInstance = /https?:\/\//.test(dbUrl)
-  ? new cloudDBAdapter(dbUrl)
-  : /mongodb(\+srv)?:\/\//i.test(dbUrl)
-  ? opts.mongodbv2
-    ? new mongoDBV2(dbUrl)
-    : new mongoDB(dbUrl)
-  : new JSONFile(opts._[0] ? `${opts._[0]}_database.json` : 'database.json');
+const dbUrl = opts.db || opts.dbv2 || '';
+const dbName = opts._[0] ? `${opts._[0]}_database.json` : 'database.json';
+
+const dbInstance =
+  !dbUrl ?
+    new JSONFile(dbName) :
+  /^https?:\/\//.test(dbUrl) ?
+    new cloudDBAdapter(dbUrl) :
+  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.db && !opts.dbv2 ?
+    new mongoDB(dbUrl) :
+  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.dbv2 && !opts.db ?
+    new mongoDBV2(dbUrl) :
+  new JSONFile(dbName);
+
 global.db = new Low(dbInstance);
 global.DATABASE = global.db;
 
