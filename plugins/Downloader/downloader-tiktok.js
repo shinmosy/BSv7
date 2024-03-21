@@ -314,7 +314,7 @@ ${getVideoInfo(video)}
                 await conn.sendFile(m.chat, buffer || giflogo, "", PrevCap, m)
             } catch (e) {
                 spinner.fail(chalk.red('Download failed'));
-                console.error(error);
+                console.error(e);
             }
         }
         if (feature == "v15") {
@@ -369,8 +369,8 @@ async function Tiktokdl(url) {
                     if (_valid) {
                         result = _valid[1]
                     }
-                } catch (error) {
-                    // console.log(error)
+                } catch (e) {
+                    // console.log(e)
                     result = false
                 }
             }
