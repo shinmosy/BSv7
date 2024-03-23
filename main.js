@@ -47,8 +47,7 @@ import {
 import chokidar from 'chokidar';
 import {
     format,
-    promisify,
-    inspect
+    promisify
 } from 'util';
 import {
     Boom
@@ -77,11 +76,9 @@ const {
     makeCacheableSignalKeyStore,
     jidNormalizedUser,
     proto,
-    delay,
     PHONENUMBER_MCC,
-    DisconnectReason,
-    useMultiFileAuthState,
-    makeInMemoryStore
+    delay,
+    DisconnectReason
 } = await (await import("@whiskeysockets/baileys")).default;
 
 import readline from "readline";
@@ -168,7 +165,6 @@ const directoryName = global.__dirname(import.meta.url)
 global.opts = new Object(Helper.opts)
 
 global.prefix = Helper.prefix;
-
 const dbUrl = opts.db || opts.dbv2 || '';
 const dbName = opts._[0] ? `${opts._[0]}_database.json` : 'database.json';
 
@@ -177,57 +173,44 @@ const dbInstance =
     new JSONFile(dbName) :
   /^https?:\/\//.test(dbUrl) ?
     new cloudDBAdapter(dbUrl) :
-  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.db && !opts.dbv2 ?
+  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.db ?
     new mongoDB(dbUrl) :
-  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.dbv2 && !opts.db ?
+  /^mongodb(\+srv)?:\/\//i.test(dbUrl) && opts.dbv2 ?
     new mongoDBV2(dbUrl) :
   new JSONFile(dbName);
 
 global.db = new Low(dbInstance);
 global.DATABASE = global.db;
-
-global.loadDatabase = async () => {
-  if (global.db.READ) {
-    await new Promise((resolve) => {
-      const interval = setInterval(async () => {
+global.loadDatabase = async function loadDatabase() {
+    if (global.db.READ) return new Promise((resolve) => setInterval(async function() {
         if (!global.db.READ) {
-          clearInterval(interval);
-          resolve(global.db.data || global.loadDatabase());
+            clearInterval(this)
+            resolve(global.db.data == null ? global.loadDatabase() : global.db.data)
         }
-      }, 1000);
-    });
-  }
-
-  try {
-    global.db.READ = true;
-    await global.db.read();
-    console.log('Database loaded');
-  } catch (error) {
-    console.error('Error loading database:', error.message);
-  } finally {
-    global.db.READ = null;
+    }, 1 * 1000))
+    if (global.db.data !== null) return
+    global.db.READ = true
+    await global.db.read().catch(console.error)
+    global.db.READ = null
     global.db.data = {
-      users: {},
-      chats: {},
-      stats: {},
-      msgs: {},
-      sticker: {},
-      settings: {},
-      ...(global.db.data || {}),
-    };
-    global.db.chain = global.db.chain || chain(global.db.data);
-  }
-
-  return global.db.data;
-};
+        users: {},
+        chats: {},
+        stats: {},
+        msgs: {},
+        sticker: {},
+        settings: {},
+        ...(global.db.data || {})
+    }
+    global.db.chain = chain(global.db.data)
+}
 
 const {
     version,
     isLatest
 } = await fetchLatestWaWebVersion().catch(() => fetchLatestBaileysVersion());
-console.log(`Using WA v${version.join(".")}, isLatest: ${isLatest}`);
+console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
 
-if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
+if (!opts && !pairingCode && !useMobile && !useQr && !singleToMulti) {
     const title = "OPTIONS";
     const message = ["--pairing-code", "--mobile", "--qr", "--singleauth"];
     const maxOptionWidth = 20;
@@ -245,6 +228,8 @@ if (!pairingCode && !useMobile && !useQr && !singleToMulti) {
     text-align: left;
 `]);
     console.log(chalk.bold.blue(`\n🚩 ${chalk.bold.blue('Example:')} ${chalk.bold.yellow('node . --pairing-code')}`));
+
+    process.exit(1);
 }
 
 global.authFolder = storeSystem.fixFileName(`${Helper.opts._[0] || ''}TaylorSession`)
@@ -257,24 +242,23 @@ var [
 ] = await Promise.all([
     Helper.checkFilesExist(authFolder + '/creds.json'),
     Helper.checkFilesExist(authFile),
-    (useMultiFileAuthState(authFolder) || storeSystem.useMultiFileAuthState(authFolder))
+    storeSystem.useMultiFileAuthState(authFolder)
 ])
 
 const logger = Pino({
     level: "silent"
 });
-global.store = (makeInMemoryStore({
+global.store = storeSystem.makeInMemoryStore({
     logger
-}) || storeSystem.makeInMemoryStore({
-    logger
-}))
+});
 
+// Convert single auth to multi auth
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
     if (!isCredsExist && isAuthSingleFileExist) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
         await single2multi(authFile, authFolder, authState);
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.green('compiled successfully'));
-        authState = (await useMultiFileAuthState(authFolder) || await storeSystem.useMultiFileAuthState(authFolder))
+        authState = await storeSystem.useMultiFileAuthState(authFolder);
     } else if (!isAuthSingleFileExist) console.error(chalk.bold.blue('- singleauth -'), chalk.bold.red('singleauth file not found'));
 }
 
@@ -448,38 +432,6 @@ if (useMobile && !conn.authState.creds.registered) {
 
 conn.logger.info('\n🚩 W A I T I N G\n');
 
-process.on('exit', code => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Exit Error')}\nDescription: Exited with code\nMessage: ${chalk.yellow(code)}\n`));
-    process.exit(1);
-});
-
-process.on('SIGINT', () => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGINT Error')}\nDescription: Received SIGINT. Stopping the execution.\n`));
-    process.exit(1);
-});
-
-process.on('SIGTERM', () => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGTERM Error')}\nDescription: Received SIGTERM. Exiting gracefully.\n`));
-    process.exit(1);
-});
-
-process.on('uncaughtException', err => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Uncaught Exception')}\nDescription: Uncaught Exception\nMessage: ${chalk.yellow(err.message)}\nStack: ${err.stack}\n`));
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Unhandled Rejection')}\nDescription: Unhandled Rejection\nReason: ${chalk.yellow(reason)}\nPromise: ${inspect(promise)}\n`));
-});
-
-process.on('warning', warning => {
-    console.warn(chalk.bold.yellow(`${chalk.bgYellow.black('Warning')}\nDescription: Warning\nMessage: ${chalk.yellow(warning.message)}\nStack: ${warning.stack}\n`));
-});
-
-process.on('rejectionHandled', promise => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Rejection Handled')}\nDescription: Rejection Handled\nPromise: ${inspect(promise)}\n`));
-});
-
-
 if (!opts['test']) {
     if (global.db) {
         setInterval(async () => {
@@ -504,21 +456,17 @@ async function connectionUpdate(update) {
     if (isNewLogin) conn.isInit = true;
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
     if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
-        await global.reloadHandler(true).then(result => {
-        console.log('Reload Handler', inspect(result));
-    })
-    .catch(error => {
-        console.error('Error saat Reload Handler', error.message);
-    });
+        conn.logger.info(await global.reloadHandler(true).catch(console.error));
     }
     if (global.db.data == null) loadDatabase();
 
     if (connection === 'connecting') {
         global.connectionAttempts++
-        console.log(chalk.bold.yellowBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
+        console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
 
         if (global.connectionAttempts >= 5) {
             console.log(chalk.bold.redBright('Tidak bisa terhubung. Kemungkinan akun Anda di banned.'));
+            process.exit(1);
         }
     }
 
@@ -535,23 +483,25 @@ async function connectionUpdate(update) {
             const pingSpeed = pingStart - currentTime;
             const formattedPingSpeed = pingSpeed < 0 ? 'N/A' : `${pingSpeed}ms`;
 
-            const infoMsg = `- 🤖 *Bot Info* 🤖
-- 🕰️ *Current Time:* ${currentTime}
-- 👤 *Name:* *${name || 'Taylor'}*
-- 🏷️ *Tag:* *@${jid.split('@')[0]}*
-- ⚡ *Ping Speed:* *${formattedPingSpeed}*
-- 📅 *Date:* ${currentTime.toDateString()}
-- 🕒 *Time:* ${currentTime.toLocaleTimeString()}
-- 📆 *Day:* ${currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
-- 📝 *Description:* Bot *${name || 'Taylor-V2'}* is now active.`;
-await delay(2000);
+            const infoMsg = `🤖 *Bot Info* 🤖
+🕰️ *Current Time:* ${currentTime}
+👤 *Name:* *${name || 'Taylor'}*
+🏷️ *Tag:* *@${jid.split('@')[0]}*
+⚡ *Ping Speed:* *${formattedPingSpeed}*
+📅 *Date:* ${currentTime.toDateString()}
+🕒 *Time:* ${currentTime.toLocaleTimeString()}
+📆 *Day:* ${currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
+📝 *Description:* Bot *${name || 'Taylor'}* is now active.`;
+
             const messg = await conn.sendMessage(
                 `${nomorown}@s.whatsapp.net`,
                 { text: infoMsg, mentions: [nomorown + '@s.whatsapp.net', jid] },
                 { quoted: null
               }
             );
-            if (!messg) return conn.logger.error(`Error Connection'\n${format(e)}'`);
+            if (!messg) {
+             conn.logger.error(`Error Connection'\n${format(e)}'`);
+             }
         } catch (e) {
             conn.logger.error(`Error Connection'\n${format(e)}'`);
         }
@@ -569,27 +519,55 @@ await delay(2000);
 
     if (!pairingCode && !useMobile && qr !== 0 && qr !== undefined && connection === 'close') {
         conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
+        process.exit(1);
     }
 
     if (!pairingCode && !useMobile && useQr && qr !== 0 && qr !== undefined && connection === 'close') {
         conn.logger.info(chalk.bold.yellow(`\n🚩ㅤPindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
+        process.exit(1);
     }
 
 }
+
+process.on('exit', code => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Exit Error')}\nDescription: Exited with code\nMessage: ${chalk.yellow(code)}\n`));
+    process.exit(1);
+});
+
+process.on('SIGINT', () => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGINT Error')}\nDescription: Received SIGINT. Stopping the execution.\n`));
+    process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGTERM Error')}\nDescription: Received SIGTERM. Exiting gracefully.\n`));
+    process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Uncaught Exception')}\nDescription: Uncaught Exception\nMessage: ${chalk.yellow(err.message)}\nStack: ${err.stack}\n`));
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Unhandled Rejection')}\nDescription: Unhandled Rejection\nReason: ${chalk.yellow(reason)}\nPromise: ${format(promise)}\n`));
+});
+
+process.on('warning', warning => {
+    console.warn(chalk.bold.yellow(`${chalk.bgYellow.black('Warning')}\nDescription: Warning\nMessage: ${chalk.yellow(warning.message)}\nStack: ${warning.stack}\n`));
+});
+
+process.on('rejectionHandled', promise => {
+    console.error(chalk.bold.red(`${chalk.bgRed.white('Rejection Handled')}\nDescription: Rejection Handled\nPromise: ${format(promise)}\n`));
+});
 
 let isInit = true;
 let handler = await import('./handler.js');
 global.reloadHandler = async function(restatConn) {
     try {
-        const Handler = await import(`./handler.js?update=${Date.now()}`).then(result => {
-        console.log('Reload Handler', inspect(result));
-    })
-    .catch(error => {
-        console.error('Error saat Reload Handler', error.message);
-    });
+        const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error);
         if (Object.keys(Handler || {}).length) handler = Handler;
     } catch (error) {
-        console.error('Error saat Reload Handler', error.message);
+        console.error;
     }
     if (restatConn) {
         const oldChats = global.conn.chats;
@@ -685,7 +663,7 @@ async function filesInit() {
 
         try {
             const { default: module } = await import(file);
-            global.plugins[moduleName] = module || (await import(file));
+            global.plugins[moduleName] = (module || (await import(file)));
             return moduleName;
         } catch (e) {
             conn.logger.error(e);
@@ -701,15 +679,15 @@ async function filesInit() {
     const results = await Promise.all(importPromises);
 
     const successMessages = results
-        .filter((result) => typeof result === 'string')
-        .sort();
+        .filter(result => typeof result === 'string')
+        .sort((a, b) => a.localeCompare(b));
 
     const errorMessages = results
-        .filter((result) => typeof result === 'object')
+        .filter(result => typeof result === 'object')
         .sort((a, b) => a.moduleName.localeCompare(b.moduleName));
 
     global.plugins = Object.fromEntries(
-        Object.entries(global.plugins).sort((a, b) => a[0].localeCompare(b[0]))
+        Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
     );
 
     conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
@@ -742,7 +720,7 @@ async function filesInit() {
     } catch (e) {
         conn.logger.error(`Error sending message: ${e}`);
     }
-};
+}
 
 global.reload = async (_ev, filename) => {
     if (pluginFilter(filename)) {
@@ -872,13 +850,13 @@ const createSpinner = (text, spinnerType) => {
 
 let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambungkan...\n'), 'moon').start();
 
-do {
+while (!conn.isInit && !isInit) {
     connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
     connectionCheckSpinner.render();
-    await delay(2000);
-} while (!conn);
+    await delay(1000);
+};
 
-connectionCheckSpinner.succeed(chalk.bold.green('Terhubung!\n'));
+connectionCheckSpinner.succeed(chalk.bold.green('Tersambung!\n'));
 connectionCheckSpinner.stop();
 
 const steps = [
@@ -891,53 +869,48 @@ const steps = [
     watchPluginStep
 ];
 
+const delayBetweenSteps = 3000;
 const mainSpinner = ora({
-    text: chalk.bold.yellow('Proses sedang berlangsung...'),
+    text: chalk.bold.yellow('Proses sedang berlangsung...\n'),
     spinner: 'moon'
 }).start();
 
 const executeStep = async (step, index) => {
-    mainSpinner.text = chalk.bold.yellow(`Sedang memproses langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}...`);
-    await delay(index * 3000);
+    mainSpinner.text = chalk.bold.yellow(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} sedang berlangsung...\n`);
+    await delay(index * delayBetweenSteps);
 
     try {
         const result = await step();
-        mainSpinner.succeed(chalk.bold.green(`Langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!`));
+        mainSpinner.succeed(chalk.bold.green(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!\n`));
         return result;
     } catch (error) {
-        mainSpinner.fail(chalk.bold.red(`Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
-        console.error(chalk.bold.red(`Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`));
-        return `Error di langkah ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}`;
+        mainSpinner.fail(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`));
+        console.error(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`));
+        return `Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`;
     }
 };
 
-await Promise.allSettled(steps.map(executeStep))
+Promise.all(steps.map((step, index) => executeStep(step, index)))
     .then(results => {
         results.forEach(result => {
-            if (result.status === 'fulfilled') {
-                const value = result.value;
-                if (typeof value === 'string') {
-                    console.error(chalk.bold.red(value));
-                }
-            } else if (result.status === 'rejected') {
-                const reason = result.reason;
-                console.error(chalk.bold.red(reason));
+            if (typeof result === 'string') {
+                console.error(chalk.bold.red(result));
             }
         });
-        mainSpinner.succeed(chalk.bold.green('Semua langkah berhasil diselesaikan!'));
+        mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!\n'));
+    })
+    .catch(error => {
+        mainSpinner.fail(chalk.bold.red(`${error}`));
     })
     .finally(() => {
         mainSpinner.stop();
     });
 
+
 async function reloadHandlerStep() {
     try {
-        await global.reloadHandler(true).then(result => {
-        console.log('Reload Handler', inspect(result));
-    })
-    .catch(error => {
-        console.error('Error saat Reload Handler', error.message);
-    });
+        await global.reloadHandler();
+        console.log(chalk.bold.green('Reload Handler Step selesai.'));
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
     }
@@ -974,7 +947,7 @@ async function _quickTest() {
 
                 return await Promise.race([closePromise, errorPromise]);
             } finally {
-                // console.error("Process exit.");
+                process.kill();
             }
         }));
 
@@ -990,9 +963,8 @@ async function _quickTest() {
         };
 
         Object.freeze(global.support = support);
-        console.error(`Succes in Quick Test: ${JSON.stringify(support, null, 4)}`);
     } catch (error) {
-        console.error(`Error in Quick Test: ${JSON.stringify(error.message, null, 4)}`);
+        console.error(`Error in Quick Test: ${error.message}`);
     }
 }
 
@@ -1006,7 +978,7 @@ async function clearTmp() {
                     try {
                         const filePath = path.join(dirname, file);
                         const stats = await statSync(filePath);
-                        if (stats.isFile()) {
+                        if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 3) {
                             await unlinkSync(filePath);
                             console.log('Successfully cleared tmp:', filePath);
                             return filePath;
@@ -1036,7 +1008,7 @@ folder = folder || './' + authFolder;
             try {
                 const filePath = path.join(folder, file);
                 const stats = await statSync(filePath);
-                if (stats.isFile() && file !== 'creds.json') {
+                if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 120 && file !== 'creds.json') {
                     await unlinkSync(filePath);
                     console.log('Deleted session:', filePath);
                     return filePath;
@@ -1055,24 +1027,30 @@ folder = folder || './' + authFolder;
 }
 
 const actions = [
-    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
+    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
     { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
-    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' }
+    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
 ];
 
 async function executeActions() {
     while (true) {
-        await Promise.allSettled(actions.map(({ func, message, color }) => func().then(() => console.log(chalk.bold[color](message))).catch(error => console.error(chalk.bold.red(`Error: ${error.message}`)))));
-        await delay(2 * 60 * 60 * 1000);
+        try {
+            await Promise.all(actions.map(async ({ func, message, color }) => {
+                await func();
+                console.log(chalk.bold[color](message));
+                await delay(3000);
+            }));
+        } catch (error) {
+            console.error(chalk.bold.red(`Error: ${error.message}`));
+        }
+        await delay(3600000);
     }
 }
 
-executeActions()
-    .then(() => console.log("Execution completed."))
-    .catch(error => console.error("Error:", error))
-    .finally(() => console.log("Finally block executed."));
+executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error));
 
-global.lib = {};
+
+global.Libs = {};
 
 const libFiles = async (dir, currentPath = '') => {
   try {
@@ -1085,7 +1063,7 @@ const libFiles = async (dir, currentPath = '') => {
       if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
           const { default: module } = await import(filePath);
-          setNestedObject(global.lib, relativePath.slice(0, -3), module || (await import(filePath)));
+          setNestedObject(global.Libs, relativePath.slice(0, -3), module || (await import(filePath)));
         } catch (importErr) {
           console.error(`Error importing ${relativePath}:`, importErr);
         }
@@ -1103,7 +1081,7 @@ const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, 
   acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
 
 libFiles(path.join(process.cwd(), 'lib'))
-  .then(() => console.log(chalk.bold.green('Created Global Lib Successfully!')))
+  .then(() => console.log(chalk.bold.green('Created Global Libs Successfully!')))
   .catch((err) => console.error(chalk.bold.red('Unhandled error:'), err));
 
 function clockString(ms) {
@@ -1113,4 +1091,4 @@ function clockString(ms) {
         value: Math.floor(i < 2 ? ms / (86400000 / [1, 24][i]) : ms / [60000, 1000][i - 2]) % ([1, 60][i < 2 ? 0 : 1])
     }));
     return units.map(unit => `${unit.value.toString().padStart(2, '0')} ${unit.label}`).join(' ');
-};
+}
