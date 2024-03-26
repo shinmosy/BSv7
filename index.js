@@ -139,6 +139,7 @@ server.on('error', (error) => {
     say('Taylor-V2', { font: 'chrome', align: 'center', gradient: ['blue', 'green'] });
     console.log(await terminalImage.buffer(taylorImage, { width: 60 }));
     say('Have fun, thanks for using this script.', { font: 'console', align: 'center', gradient: ['blue', 'green'] });
+    setInterval(() => {}, 1000);
 }
 
 function getFoldersInfo(folderPath) {
@@ -165,3 +166,9 @@ function shutdownServer() {
 }
 
 start('main.js');
+
+const tmpDir = './tmp';
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir);
+    console.log('\x1b[33m%s\x1b[0m', `📁 Created directory ${tmpDir}`);
+}
