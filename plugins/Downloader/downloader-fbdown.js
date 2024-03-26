@@ -41,7 +41,7 @@ async function fbdown(url) {
         const postOptions = {
             method: 'POST',
             body: new URLSearchParams({
-                URLz
+                URLz: url
             }),
         };
 
