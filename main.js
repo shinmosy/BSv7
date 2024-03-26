@@ -40,6 +40,7 @@ import {
 import lodash from 'lodash';
 import ora from 'ora';
 import chalk from 'chalk';
+import clc from 'cli-color';
 import syntaxerror from 'syntax-error';
 import {
     tmpdir
@@ -49,6 +50,7 @@ import {
     format,
     promisify
 } from 'util';
+
 import {
     Boom
 } from "@hapi/boom";
@@ -142,20 +144,9 @@ const {
 } = lodash
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
 
-const doTask = async () => {
-    try {
-        await protoType();
-        await delay(2000);
-        await serialize();
-    } catch (error) {
-        console.error('Terjadi kesalahan:', error.message);
-    }
-};
-
-doTask().catch(error => {
-    console.error('Terjadi kesalahan saat menjalankan tugas:', error.message);
-});
-
+protoType();
+serialize();
+   
 global.API = Helper.API
 global.timestamp = {
     start: new Date()
@@ -182,27 +173,38 @@ const dbInstance =
 global.db = new Low(dbInstance);
 global.DATABASE = global.db;
 global.loadDatabase = async function loadDatabase() {
-    if (global.db.READ) return new Promise((resolve) => setInterval(async function() {
-        if (!global.db.READ) {
-            clearInterval(this)
-            resolve(global.db.data == null ? global.loadDatabase() : global.db.data)
-        }
-    }, 1 * 1000))
-    if (global.db.data !== null) return
-    global.db.READ = true
-    await global.db.read().catch(console.error)
-    global.db.READ = null
-    global.db.data = {
-        users: {},
-        chats: {},
-        stats: {},
-        msgs: {},
-        sticker: {},
-        settings: {},
-        ...(global.db.data || {})
+    if (global.db.READ) {
+        return new Promise((resolve) => {
+            const intervalId = setInterval(async () => {
+                if (!global.db.READ) {
+                    clearInterval(intervalId);
+                    resolve(global.db.data == null ? global.loadDatabase() : global.db.data);
+                }
+            }, 1000);
+        });
     }
-    global.db.chain = chain(global.db.data)
-}
+
+    if (global.db.data !== null) return;
+
+    global.db.READ = true;
+    try {
+        await global.db.read();
+        global.db.data = {
+            users: {},
+            chats: {},
+            stats: {},
+            msgs: {},
+            sticker: {},
+            settings: {},
+            ...(global.db.data || {})
+        };
+        global.db.chain = chain(global.db.data);
+    } catch (error) {
+        console.error(error);
+    } finally {
+        global.db.READ = null;
+    }
+};
 
 const {
     version,
@@ -229,7 +231,7 @@ if (!opts && !pairingCode && !useMobile && !useQr && !singleToMulti) {
 `]);
     console.log(chalk.bold.blue(`\n🚩 ${chalk.bold.blue('Example:')} ${chalk.bold.yellow('node . --pairing-code')}`));
 
-    process.exit(1);
+    setImmediate(() => process.exit(1));
 }
 
 global.authFolder = storeSystem.fixFileName(`${Helper.opts._[0] || ''}TaylorSession`)
@@ -252,7 +254,6 @@ global.store = storeSystem.makeInMemoryStore({
     logger
 });
 
-// Convert single auth to multi auth
 if (Helper.opts['singleauth'] || Helper.opts['singleauthstate']) {
     if (!isCredsExist && isAuthSingleFileExist) {
         console.debug(chalk.bold.blue('- singleauth -'), chalk.bold.yellow('creds.json not found'), chalk.bold.green('compiling singleauth to multiauth...'));
@@ -348,7 +349,6 @@ if (pairingCode && !conn.authState.creds.registered) {
     await delay(3000)
     let code = await conn.requestPairingCode(phoneNumber)
     code = code?.match(/.{1,4}/g)?.join("-") || code
-    global.codePairing = code
     console.log(chalk.bold.cyan('╭──────────────────────────────────────···'));
     console.log(` 💻 ${chalk.bold.redBright('Your Pairing Code')}:`);
     console.log(chalk.bold.cyan('├──────────────────────────────────────···'));
@@ -436,14 +436,20 @@ if (!opts['test']) {
     if (global.db) {
         setInterval(async () => {
             if (global.db.data) await global.db.write(global.db.data);
-            if (opts['autocleartmp'] && (global.support || {}).find)(tmp = [os.tmpdir(), 'tmp', 'jadibot'], tmp.forEach((filename) => cp.spawn('find', [filename, '-amin', '3', '-type', 'f', '-delete'])));
+            if (opts['autocleartmp'] && (global.support || {}).find) {
+                const tmp = [os.tmpdir(), 'tmp', 'jadibot'];
+                tmp.forEach((filename) => cp.spawn('find', [filename, '-amin', '3', '-type', 'f', '-delete']));
+            }
         }, 30 * 1000);
     }
 }
 
-if (opts['server'])(await import('./server.js')).default(global.conn, PORT);
+if (opts['server']) {
+    const serverModule = await import('./server.js');
+    serverModule.default(global.conn, PORT);
+}
 
-global.connectionAttempts = 0
+let timeout = 0;
 async function connectionUpdate(update) {
     const {
         connection,
@@ -453,28 +459,35 @@ async function connectionUpdate(update) {
         isOnline,
         receivedPendingNotifications
     } = update;
+    
+if (connection) console.info("Taylor-V2".main, ">>", `Connection Status : ${connection}`.info);
+
     if (isNewLogin) conn.isInit = true;
-    const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
+
+    const code = (lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode);
+    
     if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
-        conn.logger.info(await global.reloadHandler(true).catch(console.error));
-    }
-    if (global.db.data == null) loadDatabase();
-
-    if (connection === 'connecting') {
-        global.connectionAttempts++
-        console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
-
-        if (global.connectionAttempts >= 5) {
-            console.log(chalk.bold.redBright('Tidak bisa terhubung. Kemungkinan akun Anda di banned.'));
-            process.exit(1);
+        try {
+            conn.logger.info(await global.reloadHandler(true).catch(err => console.error(err)));
+        } catch (err) {
+            console.error(err);
         }
     }
 
-    if (connection === 'open') {
+    if (!global.db.data) loadDatabase();
+            
+            if (connection === 'connecting') {
+        timeout++
+        console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
+        if (timeout > 30) {
+                    console.log("Taylor-V2".main, ">>", `Session logout after 30 times reconnecting, This action will save your number from banned!`.warn);
+                    setImmediate(() => process.exit(1));
+            }
+    }
+    
+      if (connection === 'open') {
         try {
-            const {
-                jid
-            } = conn.user;
+            const { jid } = conn.user;
             const name = await conn.getName(jid);
             conn.user.name = name || 'Taylor-V2';
 
@@ -482,7 +495,7 @@ async function connectionUpdate(update) {
             const pingStart = new Date();
             const pingSpeed = pingStart - currentTime;
             const formattedPingSpeed = pingSpeed < 0 ? 'N/A' : `${pingSpeed}ms`;
-
+console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split(":")[0] || global.namebot}`.info);
             const infoMsg = `🤖 *Bot Info* 🤖
 🕰️ *Current Time:* ${currentTime}
 👤 *Name:* *${name || 'Taylor'}*
@@ -496,68 +509,77 @@ async function connectionUpdate(update) {
             const messg = await conn.sendMessage(
                 `${nomorown}@s.whatsapp.net`,
                 { text: infoMsg, mentions: [nomorown + '@s.whatsapp.net', jid] },
-                { quoted: null
-              }
+                { quoted: null }
             );
             if (!messg) {
-             conn.logger.error(`Error Connection'\n${format(e)}'`);
-             }
+                conn.logger.error(`Error Connection'\n${format(e)}'`);
+            }
         } catch (e) {
             conn.logger.error(`Error Connection'\n${format(e)}'`);
         }
         conn.logger.info(chalk.bold.yellow('\n🚩 R E A D Y'));
     }
-    if (isOnline == true) {
+
+    if (isOnline === true) {
         conn.logger.info(chalk.bold.green('Status Aktif'));
     }
-    if (isOnline == false) {
+
+    if (isOnline === false) {
         conn.logger.error(chalk.bold.red('Status Mati'));
     }
+
     if (receivedPendingNotifications) {
         conn.logger.warn(chalk.bold.yellow('Menunggu Pesan Baru'));
     }
 
     if (!pairingCode && !useMobile && qr !== 0 && qr !== undefined && connection === 'close') {
         conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
-        process.exit(1);
+        setImmediate(() => process.exit(1));
     }
 
     if (!pairingCode && !useMobile && useQr && qr !== 0 && qr !== undefined && connection === 'close') {
-        conn.logger.info(chalk.bold.yellow(`\n🚩ㅤPindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
-        process.exit(1);
+        conn.logger.info(chalk.bold.yellow(`\n🚩 Pindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
+        setImmediate(() => process.exit(1));
     }
-
 }
 
-process.on('exit', code => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Exit Error')}\nDescription: Exited with code\nMessage: ${chalk.yellow(code)}\n`));
-    process.exit(1);
+process.on('exit', (code) => {
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Exit Error: Exited with code ").yellow, chalk.yellow(code).yellow);
+  setImmediate(() => process.exit(1));
 });
 
 process.on('SIGINT', () => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGINT Error')}\nDescription: Received SIGINT. Stopping the execution.\n`));
-    process.exit(1);
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" SIGINT Error: Received SIGINT. Stopping the execution. ").yellow);
+  setImmediate(() => process.exit(1));
 });
 
 process.on('SIGTERM', () => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('SIGTERM Error')}\nDescription: Received SIGTERM. Exiting gracefully.\n`));
-    process.exit(1);
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" SIGTERM Error: Received SIGTERM. Exiting gracefully. ").yellow);
+  setImmediate(() => process.exit(1));
 });
 
-process.on('uncaughtException', err => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Uncaught Exception')}\nDescription: Uncaught Exception\nMessage: ${chalk.yellow(err.message)}\nStack: ${err.stack}\n`));
+process.on('uncaughtException', (err) => {
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Uncaught Exception: ").yellow, chalk.yellow(err.message).yellow, clc.bgRed.white(" Stack: ").yellow, err.stack.yellow);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Unhandled Rejection')}\nDescription: Unhandled Rejection\nReason: ${chalk.yellow(reason)}\nPromise: ${format(promise)}\n`));
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Unhandled Rejection: ").yellow, chalk.yellow(reason).yellow, clc.bgRed.white(" Promise: ").yellow, format(promise).yellow);
 });
 
-process.on('warning', warning => {
-    console.warn(chalk.bold.yellow(`${chalk.bgYellow.black('Warning')}\nDescription: Warning\nMessage: ${chalk.yellow(warning.message)}\nStack: ${warning.stack}\n`));
+process.on('warning', (warning) => {
+  console.warn(clc.bgYellow.black(" Taylor-V2 "), ">>", clc.bgYellow.black(" Warning: ").yellow, chalk.yellow(warning.message).yellow, clc.bgYellow.black(" Stack: ").yellow, warning.stack.yellow);
 });
 
-process.on('rejectionHandled', promise => {
-    console.error(chalk.bold.red(`${chalk.bgRed.white('Rejection Handled')}\nDescription: Rejection Handled\nPromise: ${format(promise)}\n`));
+process.on('rejectionHandled', (promise) => {
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Rejection Handled: ").yellow, format(promise).yellow);
+});
+
+process.on('uncaughtExceptionMonitor', (reason, promise) => {
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Uncaught Exception Monitor: ").yellow, chalk.yellow(reason).yellow, clc.bgRed.white(" Promise: ").yellow, format(promise).yellow);
+});
+
+process.on('multipleResolves', () => {
+  null;
 });
 
 let isInit = true;
@@ -862,6 +884,8 @@ connectionCheckSpinner.stop();
 const steps = [
     loadDatabase,
     loadConfig,
+    clearTmp,
+    clearSessions,
     _quickTest,
     filesInit,
     watchFiles,
@@ -890,22 +914,22 @@ const executeStep = async (step, index) => {
     }
 };
 
-Promise.all(steps.map((step, index) => executeStep(step, index)))
-    .then(results => {
+const executeAllSteps = async (steps) => {
+    try {
+        const results = await Promise.all(steps.map((step, index) => executeStep(step, index)));
         results.forEach(result => {
             if (typeof result === 'string') {
                 console.error(chalk.bold.red(result));
             }
         });
         mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!\n'));
-    })
-    .catch(error => {
+    } catch (error) {
         mainSpinner.fail(chalk.bold.red(`${error}`));
-    })
-    .finally(() => {
+    } finally {
         mainSpinner.stop();
-    });
-
+    }
+};
+executeAllSteps(steps);
 
 async function reloadHandlerStep() {
     try {
@@ -978,14 +1002,13 @@ async function clearTmp() {
                     try {
                         const filePath = path.join(dirname, file);
                         const stats = await statSync(filePath);
-                        if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 3) {
+                        if (stats.isFile()) {
                             await unlinkSync(filePath);
                             console.log('Successfully cleared tmp:', filePath);
                             return filePath;
                         }
                     } catch (err) {
                         console.error(`Error processing ${file}: ${err.message}`);
-
                     }
                 }));
             } catch (err) {
@@ -993,64 +1016,43 @@ async function clearTmp() {
                 return [];
             }
         }));
-        return filenames.flat().filter((file) => file !== null);
+        const flattenedFilenames = filenames.flat().filter((file) => file !== null);
+        return flattenedFilenames;
     } catch (err) {
         console.error(`Error in clearTmp: ${err.message}`);
         return [];
+    } finally {
+        setTimeout(clearTmp, 60 * 60 * 1000);
     }
 }
 
 async function clearSessions(folder) {
-folder = folder || './' + authFolder;
+    folder = folder || './' + authFolder;
     try {
         const filenames = await readdirSync(folder);
         const deletedFiles = await Promise.all(filenames.map(async (file) => {
             try {
                 const filePath = path.join(folder, file);
                 const stats = await statSync(filePath);
-                if (stats.isFile() && Date.now() - stats.mtimeMs >= 1000 * 60 * 120 && file !== 'creds.json') {
+                if (stats.isFile() && file !== 'creds.json') {
                     await unlinkSync(filePath);
                     console.log('Deleted session:', filePath);
                     return filePath;
                 }
-
             } catch (err) {
                 console.error(`Error processing ${file}: ${err.message}`);
-
             }
         }));
         return deletedFiles.filter((file) => file !== null);
     } catch (err) {
         console.error(`Error in Clear Sessions: ${err.message}`);
         return [];
+    } finally {
+        setTimeout(() => clearSessions(folder), 60 * 60 * 1000);
     }
 }
 
-const actions = [
-    { func: clearTmp, message: 'Penyegaran Tempat Penyimpanan Berhasil ✅', color: 'green' },
-    { func: clearSessions, message: 'Clear Sessions Berhasil ✅', color: 'green' },
-    { func: loadConfig, message: 'Sukses Reload config. ✅', color: 'green' },
-];
-
-async function executeActions() {
-    while (true) {
-        try {
-            await Promise.all(actions.map(async ({ func, message, color }) => {
-                await func();
-                console.log(chalk.bold[color](message));
-                await delay(3000);
-            }));
-        } catch (error) {
-            console.error(chalk.bold.red(`Error: ${error.message}`));
-        }
-        await delay(3600000);
-    }
-}
-
-executeActions().then(() => console.log("Execution completed.")).catch(error => console.error("Error:", error));
-
-
-global.Libs = {};
+global.lib = {};
 
 const libFiles = async (dir, currentPath = '') => {
   try {
@@ -1063,7 +1065,7 @@ const libFiles = async (dir, currentPath = '') => {
       if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
           const { default: module } = await import(filePath);
-          setNestedObject(global.Libs, relativePath.slice(0, -3), module || (await import(filePath)));
+          setNestedObject(global.lib, relativePath.slice(0, -3), module || (await import(filePath)));
         } catch (importErr) {
           console.error(`Error importing ${relativePath}:`, importErr);
         }
@@ -1076,13 +1078,9 @@ const libFiles = async (dir, currentPath = '') => {
     throw readDirErr;
   }
 };
+libFiles(path.join(process.cwd(), 'lib'));
 
-const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) =>
-  acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
-
-libFiles(path.join(process.cwd(), 'lib'))
-  .then(() => console.log(chalk.bold.green('Created Global Libs Successfully!')))
-  .catch((err) => console.error(chalk.bold.red('Unhandled error:'), err));
+const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) => acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';

@@ -6,20 +6,32 @@ import chalk from "chalk"
 import {
     fileURLToPath
 } from "url"
-import fs from "fs"
+
 import moment from "moment-timezone"
+import colors from "colors"
 
 const {
     WA_DEFAULT_EPHEMERAL
 } = await (await import("@whiskeysockets/baileys")).default;
 
-import Jimp from 'jimp';
-import fetch from 'node-fetch';
-import axios from 'axios';
-import { fetch as undiciFetch } from 'undici';
-import got from 'got';
-
 async function loadConfig() {
+try {
+
+//custom colors for beautiful console.log()
+colors.setTheme({
+   main: ['brightBlue', 'bold'],
+   silly: 'rainbow',
+   input: 'grey',
+   verbose: 'cyan',
+   prompt: 'grey',
+   info: 'green',
+   data: 'grey',
+   help: 'cyan',
+   warn: 'yellow',
+   debug: 'blue',
+   error: 'brightRed'
+});
+
     /*Oᴡɴᴇʀ number*/
     global.owner = [
         ["6282195322106", "️𝑾𝒖𝒅𝒚𝒔𝒐𝒇𝒕 - 𝑶𝒘𝒏𝒆𝒓", true]
@@ -296,6 +308,11 @@ async function loadConfig() {
             if (!results.length) return ""
             else return emot[results[0][0]]
         }
+    }
+    } catch (err) {
+    console.error(`Error in Clear Sessions: ${err.message}`);
+    } finally {
+        setTimeout(loadConfig, 60 * 60 * 1000);
     }
 }
 
