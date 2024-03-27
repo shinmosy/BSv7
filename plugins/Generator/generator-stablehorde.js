@@ -1,8 +1,8 @@
 const {
     StableHorde
-} = await (await import('../../lib/maker/stablehorde.js'));
+} = await(await import('../../lib/maker/stablehorde.js'));
 const apiKey = "0000000000";
-const stableHorde = new StableHorde(apiKey);
+const stableHorde = new StableHorde({ apiKey });
 
 let handler = async (m, {
     command,

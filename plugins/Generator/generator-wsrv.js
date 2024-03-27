@@ -27,6 +27,6 @@ let handler = async (m, {
 }
 handler.help = ['towsrv'].map(v => v + ' (Balas foto)')
 handler.tags = ['tools']
-handler.command = /^(to|jadi)wsrv$/i
+handler.command = /^(to|jadi)?wsrv$/i
 handler.limit = true
 export default handler
