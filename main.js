@@ -173,30 +173,19 @@ const dbInstance =
 global.db = new Low(dbInstance);
 global.DATABASE = global.db;
 global.loadDatabase = async function loadDatabase() {
-    if (global.db.READ) {
-        return new Promise((resolve) => {
-            const intervalId = setInterval(async () => {
-                if (!global.db.READ) {
-                    clearInterval(intervalId);
-                    resolve(global.db.data == null ? global.loadDatabase() : global.db.data);
-                }
-            }, 1000);
-        });
-    }
-
-    if (global.db.data !== null) return;
+    if (global.db.data !== null) return global.db.data;
 
     global.db.READ = true;
     try {
         await global.db.read();
         global.db.data = {
-            users: {},
-            chats: {},
-            stats: {},
-            msgs: {},
-            sticker: {},
-            settings: {},
-            ...(global.db.data || {})
+            users: new Object(),
+            chats: new Object(),
+            stats: new Object(),
+            msgs: new Object(),
+            sticker: new Object(),
+            settings: new Object(),
+            ...(global.db.data || new Object())
         };
         global.db.chain = chain(global.db.data);
     } catch (error) {
@@ -204,6 +193,15 @@ global.loadDatabase = async function loadDatabase() {
     } finally {
         global.db.READ = null;
     }
+
+    return new Promise((resolve) => {
+        const intervalId = setInterval(async () => {
+            if (!global.db.READ) {
+                clearInterval(intervalId);
+                resolve(global.db.data);
+            }
+        }, 1000);
+    });
 };
 
 const {
@@ -288,7 +286,7 @@ const connectionOptions = {
                     message: {
                         messageContextInfo: {
                             deviceListMetadataVersion: 2,
-                            deviceListMetadata: {}
+                            deviceListMetadata: new Object()
                         },
                         ...message
                     }
@@ -297,7 +295,7 @@ const connectionOptions = {
         }
         return message;
     },
-    msgRetryCounterMap: {},
+    msgRetryCounterMap: new Object(),
     logger,
     auth: {
         creds: authState.state.creds,
@@ -311,7 +309,7 @@ const connectionOptions = {
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
-        return proto.Message.fromObject({});
+        return proto.Message.fromObject(new Object());
     },
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
@@ -361,7 +359,7 @@ if (useMobile && !conn.authState.creds.registered) {
     const {
         registration
     } = conn.authState.creds || {
-        registration: {}
+        registration: new Object()
     }
     if (!registration.phoneNumber) {
         console.log(chalk.bold.cyan('╭──────────────────────────────────────···'));
@@ -432,24 +430,21 @@ if (useMobile && !conn.authState.creds.registered) {
 
 conn.logger.info('\n🚩 W A I T I N G\n');
 
-if (!opts['test']) {
-    if (global.db) {
-        setInterval(async () => {
-            if (global.db.data) await global.db.write(global.db.data);
-            if (opts['autocleartmp'] && (global.support || {}).find) {
-                const tmp = [os.tmpdir(), 'tmp', 'jadibot'];
-                tmp.forEach((filename) => cp.spawn('find', [filename, '-amin', '3', '-type', 'f', '-delete']));
-            }
-        }, 30 * 1000);
-    }
+if (!opts['test'] && global.db) {
+    setInterval(async () => {
+        if (global.db.data) await global.db.write(global.db.data);
+        if (opts['autocleartmp'] && (global.support || new Object()).find) {
+            ['tmp', 'jadibot'].forEach((filename) => cp.spawn('find', [os.tmpdir(), filename, '-amin', '3', '-type', 'f', '-delete']));
+        }
+    }, 5 * 60 * 1000);
 }
 
 if (opts['server']) {
-    const serverModule = await import('./server.js');
-    serverModule.default(global.conn, PORT);
+    (await import('./server.js')).default(global.conn, PORT);
 }
 
 let timeout = 0;
+
 async function connectionUpdate(update) {
     const {
         connection,
@@ -459,43 +454,49 @@ async function connectionUpdate(update) {
         isOnline,
         receivedPendingNotifications
     } = update;
-    
-if (connection) console.info("Taylor-V2".main, ">>", `Connection Status : ${connection}`.info);
 
-    if (isNewLogin) conn.isInit = true;
+    if (connection) {
+        console.info("Taylor-V2".main, ">>", `Connection Status : ${connection}`.info);
+    }
+
+    if (isNewLogin) {
+        conn.isInit = true;
+    }
 
     const code = (lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode);
-    
+
     if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
         try {
-            conn.logger.info(await global.reloadHandler(true).catch(err => console.error(err)));
+            conn.logger.info(await global.reloadHandler(true).catch(console.error));
         } catch (err) {
             console.error(err);
         }
     }
 
-    if (!global.db.data) loadDatabase();
-            
-            if (connection === 'connecting') {
-        timeout++
+    if (!global.db.data) {
+        loadDatabase();
+    }
+
+    if (connection === 'connecting') {
+        timeout++;
         console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
         if (timeout > 30) {
-                    console.log("Taylor-V2".main, ">>", `Session logout after 30 times reconnecting, This action will save your number from banned!`.warn);
-                    setImmediate(() => process.exit(1));
-            }
+            console.log("Taylor-V2".main, ">>", `Session logout after 30 times reconnecting, This action will save your number from banned!`.warn);
+            setImmediate(() => process.exit(1));
+        }
     }
-    
-      if (connection === 'open') {
+
+    if (connection === 'open') {
         try {
             const { jid } = conn.user;
             const name = await conn.getName(jid);
             conn.user.name = name || 'Taylor-V2';
 
             const currentTime = new Date();
-            const pingStart = new Date();
-            const pingSpeed = pingStart - currentTime;
+            const pingSpeed = new Date() - currentTime;
             const formattedPingSpeed = pingSpeed < 0 ? 'N/A' : `${pingSpeed}ms`;
-console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split(":")[0] || global.namebot}`.info);
+
+            console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split(":")[0] || global.namebot}`.info);
             const infoMsg = `🤖 *Bot Info* 🤖
 🕰️ *Current Time:* ${currentTime}
 👤 *Name:* *${name || 'Taylor'}*
@@ -522,9 +523,7 @@ console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split
 
     if (isOnline === true) {
         conn.logger.info(chalk.bold.green('Status Aktif'));
-    }
-
-    if (isOnline === false) {
+    } else if (isOnline === false) {
         conn.logger.error(chalk.bold.red('Status Mati'));
     }
 
@@ -532,31 +531,28 @@ console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split
         conn.logger.warn(chalk.bold.yellow('Menunggu Pesan Baru'));
     }
 
-    if (!pairingCode && !useMobile && qr !== 0 && qr !== undefined && connection === 'close') {
-        conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
-        setImmediate(() => process.exit(1));
-    }
-
-    if (!pairingCode && !useMobile && useQr && qr !== 0 && qr !== undefined && connection === 'close') {
-        conn.logger.info(chalk.bold.yellow(`\n🚩 Pindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
+    if ((!pairingCode && !useMobile || useQr) && qr !== 0 && qr !== undefined && connection === 'close') {
+        if (!useMobile) {
+            conn.logger.error(chalk.bold.yellow(`\n🚩 Koneksi ditutup, harap hapus folder ${authFolder} dan pindai ulang kode QR`));
+        } else {
+            conn.logger.info(chalk.bold.yellow(`\n🚩 Pindai kode QR ini, kode QR akan kedaluwarsa dalam 60 detik.`));
+        }
         setImmediate(() => process.exit(1));
     }
 }
 
-process.on('exit', (code) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Exit Error: Exited with code ").yellow, chalk.yellow(code).yellow);
-  setImmediate(() => process.exit(1));
-});
+const handleExit = (message, code = 1) => {
+  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(message.yellow));
+  setImmediate(() => process.exit(code));
+};
 
-process.on('SIGINT', () => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" SIGINT Error: Received SIGINT. Stopping the execution. ").yellow);
-  setImmediate(() => process.exit(1));
-});
+const handleError = (eventName, message) => {
+  process.on(eventName, () => handleExit(`${eventName} Error: ${message}`));
+};
 
-process.on('SIGTERM', () => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" SIGTERM Error: Received SIGTERM. Exiting gracefully. ").yellow);
-  setImmediate(() => process.exit(1));
-});
+process.on('exit', (code) => handleExit(`Exit Error: Exited with code ${chalk.yellow(code)}`));
+handleError('SIGINT', 'Received SIGINT. Stopping the execution.');
+handleError('SIGTERM', 'Received SIGTERM. Exiting gracefully.');
 
 process.on('uncaughtException', (err) => {
   console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Uncaught Exception: ").yellow, chalk.yellow(err.message).yellow, clc.bgRed.white(" Stack: ").yellow, err.stack.yellow);
@@ -587,7 +583,7 @@ let handler = await import('./handler.js');
 global.reloadHandler = async function(restatConn) {
     try {
         const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error);
-        if (Object.keys(Handler || {}).length) handler = Handler;
+        if (Object.keys(Handler || new Object()).length) handler = Handler;
     } catch (error) {
         console.error;
     }
@@ -684,55 +680,47 @@ async function filesInit() {
         const moduleName = path.join('/plugins', path.relative(pluginFolder, file));
 
         try {
-            const { default: module } = await import(file);
-            global.plugins[moduleName] = (module || (await import(file)));
-            return moduleName;
+            const module = (await import(file)).default || (await import(file));
+            global.plugins[moduleName] = module;
+            return { moduleName, success: true };
         } catch (e) {
             conn.logger.error(e);
             delete global.plugins[moduleName];
-            return {
-                moduleName,
-                filePath: file,
-                message: e.message
-            };
+            return { moduleName, filePath: file, message: e.message, success: false };
         }
     });
 
-    const results = await Promise.all(importPromises);
-
-    const successMessages = results
-        .filter(result => typeof result === 'string')
-        .sort((a, b) => a.localeCompare(b));
-
-    const errorMessages = results
-        .filter(result => typeof result === 'object')
-        .sort((a, b) => a.moduleName.localeCompare(b.moduleName));
-
-    global.plugins = Object.fromEntries(
-        Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
-    );
-
-    conn.logger.warn(`Loaded ${CommandsFiles.length} JS Files total.`);
-    conn.logger.info(`✅ Success Plugins:\n${successMessages.length} total.`);
-    conn.logger.error(`❌ Error Plugins:\n${errorMessages.length} total`);
-
     try {
+        const results = await Promise.all(importPromises);
+
+        const successMessages = results.filter((result) => result.success).map((result) => result.moduleName);
+        const errorMessages = results.filter((result) => !result.success);
+
+        global.plugins = Object.fromEntries(
+            Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
+        );
+
+        const loadedPluginsMsg = `Loaded ${CommandsFiles.length} JS Files total.`;
+        const successPluginsMsg = `✅ Success Plugins:\n${successMessages.length} total.`;
+        const errorPluginsMsg = `❌ Error Plugins:\n${errorMessages.length} total`;
+
+        conn.logger.warn(loadedPluginsMsg);
+        conn.logger.info(successPluginsMsg);
+        conn.logger.error(errorPluginsMsg);
+
+        const errorMessagesText = errorMessages.map((error, index) =>
+            `  ❗ *Error ${index + 1}:* ${error.filePath}\n - ${error.message}`
+        ).join('');
+
+        const messageText = `- 🤖 *Loaded Plugins Report* 🤖\n` +
+            `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
+            `✅ *Success:* ${successMessages.length}\n` +
+            `❌ *Error:* ${errorMessages.length}\n` +
+            (errorMessages.length > 0 ? errorMessagesText : '');
+
         const messg = await conn.sendMessage(
             nomorown + '@s.whatsapp.net',
-            {
-                text: `- 🤖 *Loaded Plugins Report* 🤖\n` +
-                    `🔧 *Total Plugins:* ${CommandsFiles.length}\n` +
-                    `✅ *Success:* ${successMessages.length}\n` +
-                    `❌ *Error:* ${errorMessages.length}\n` +
-                    (errorMessages.length > 0
-                        ? `  ❗ *Errors:* ${errorMessages
-                              .map(
-                                  (error, index) =>
-                                      `\n    ${index + 1}. ${error.filePath}\n - ${error.message}`
-                              )
-                              .join('')}\n`
-                        : ''),
-            },
+            { text: messageText },
             { quoted: null }
         );
 
@@ -745,21 +733,13 @@ async function filesInit() {
 }
 
 global.reload = async (_ev, filename) => {
-    if (pluginFilter(filename)) {
-        let dir = path.join(pluginFolder, filename);
-        if (global.plugins.hasOwnProperty(filename)) {
-            if (existsSync(dir)) {
-                conn.logger.info(`re-require plugin '${filename}'`);
-            } else {
-                conn.logger.warn(`deleted plugin '${filename}'`);
-                delete global.plugins[filename];
-                return;
-            }
-        } else {
-            conn.logger.info(`requiring new plugin '${filename}'`);
-        }
+    if (!pluginFilter(filename)) return;
 
-        try {
+    const dir = path.join(pluginFolder, filename);
+
+    try {
+        if (existsSync(dir)) {
+            conn.logger.info(`Requiring plugin '${filename}'`);
             const fileContent = await readFileSync(dir, 'utf-8');
             const err = syntaxerror(fileContent, filename, {
                 sourceType: 'module',
@@ -769,33 +749,35 @@ global.reload = async (_ev, filename) => {
                 allowImportExportEverywhere: true
             });
             if (err) {
-                conn.logger.error(`syntax error while loading '${filename}'\n${format(err)}`);
+                conn.logger.error(`Syntax error while loading '${filename}'\n${format(err)}`);
             } else {
                 const module = await import(`${global.__filename(dir)}?update=${Date.now()}`);
                 global.plugins[filename] = module.default || module;
             }
-        } catch (e) {
-            conn.logger.error(`error require plugin '${filename}\n${format(e)}'`);
-        } finally {
-            global.plugins = Object.fromEntries(
-                Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
-            );
+        } else {
+            conn.logger.warn(`Deleted plugin '${filename}'`);
+            delete global.plugins[filename];
         }
+    } catch (e) {
+        conn.logger.error(`Error requiring plugin '${filename}'\n${format(e)}`);
+    } finally {
+        global.plugins = Object.fromEntries(
+            Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
+        );
     }
 };
 
 async function FileEv(type, file) {
     try {
+        const resolvedFile = path.resolve(global.__filename(file));
         switch (type) {
             case 'delete':
-                delete global.plugins[path.resolve(global.__filename(file))];
+                delete global.plugins[resolvedFile];
                 break;
             case 'change':
             case 'add':
-                const module = await import(
-                    `${global.__filename(file)}?update=${Date.now()}`
-                );
-                global.plugins[path.resolve(global.__filename(file))] = module.default || module;
+                const module = await import(`${resolvedFile}?update=${Date.now()}`);
+                global.plugins[resolvedFile] = module.default || module;
                 break;
         }
     } catch (e) {
@@ -809,12 +791,12 @@ async function FileEv(type, file) {
 
 async function watchFiles() {
     const watcher = chokidar.watch(['./**/*.js', '!./node_modules/**/*.js'], {
-    ignored: /(^|[/\\])\../,
-    ignoreInitial: true,
-    persistent: true,
-    usePolling: true,
-    cwd: directoryName
-});
+        ignored: /(^|[/\\])\../,
+        ignoreInitial: true,
+        persistent: true,
+        usePolling: true,
+        cwd: directoryName
+    });
 
     watcher
         .on('add', async (path) => {
@@ -847,7 +829,7 @@ async function watchFiles() {
         .on('ready', () => {
             conn.logger.info('Initial scan complete. Ready for changes.');
         });
-};
+}
 
 const createSpinner = (text, spinnerType) => {
     const spinner = ora({
@@ -870,33 +852,22 @@ const createSpinner = (text, spinnerType) => {
     };
 };
 
-let connectionCheckSpinner = createSpinner(chalk.bold.yellow('Menunggu disambungkan...\n'), 'moon').start();
-
-while (!conn.isInit && !isInit) {
-    connectionCheckSpinner.text = chalk.bold.yellow('Menunggu disambungkan...\n');
-    connectionCheckSpinner.render();
-    await delay(1000);
-};
-
-connectionCheckSpinner.succeed(chalk.bold.green('Tersambung!\n'));
-connectionCheckSpinner.stop();
-
 const steps = [
     loadDatabase,
     loadConfig,
     clearTmp,
     clearSessions,
-    _quickTest,
     filesInit,
     watchFiles,
+    watchPluginStep,
     reloadHandlerStep,
-    watchPluginStep
+    _quickTest
 ];
 
-const delayBetweenSteps = 3000;
+const delayBetweenSteps = 0;
 const mainSpinner = ora({
     text: chalk.bold.yellow('Proses sedang berlangsung...\n'),
-    spinner: 'moon'
+        spinner: 'moon'
 }).start();
 
 const executeStep = async (step, index) => {
@@ -916,12 +887,14 @@ const executeStep = async (step, index) => {
 
 const executeAllSteps = async (steps) => {
     try {
-        const results = await Promise.all(steps.map((step, index) => executeStep(step, index)));
-        results.forEach(result => {
-            if (typeof result === 'string') {
-                console.error(chalk.bold.red(result));
-            }
-        });
+        await Promise.all(steps.map((step, index) => {
+            return new Promise(resolve => {
+                setTimeout(async () => {
+                    const result = await executeStep(step, index);
+                    resolve(result);
+                }, index * delayBetweenSteps);
+            });
+        }));
         mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!\n'));
     } catch (error) {
         mainSpinner.fail(chalk.bold.red(`${error}`));
@@ -929,11 +902,12 @@ const executeAllSteps = async (steps) => {
         mainSpinner.stop();
     }
 };
+
 executeAllSteps(steps);
 
 async function reloadHandlerStep() {
     try {
-        await global.reloadHandler();
+        await global.reloadHandler().catch(console.error)
         console.log(chalk.bold.green('Reload Handler Step selesai.'));
     } catch (error) {
         throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
@@ -1052,7 +1026,7 @@ async function clearSessions(folder) {
     }
 }
 
-global.lib = {};
+global.lib = new Object();
 
 const libFiles = async (dir, currentPath = '') => {
   try {
@@ -1064,8 +1038,8 @@ const libFiles = async (dir, currentPath = '') => {
 
       if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
-          const { default: module } = await import(filePath);
-          setNestedObject(global.lib, relativePath.slice(0, -3), module || (await import(filePath)));
+          const module = (await import(filePath)).default || (await import(filePath));
+          setNestedObject(global.lib, relativePath.slice(0, -3), module);
         } catch (importErr) {
           console.error(`Error importing ${relativePath}:`, importErr);
         }
@@ -1080,7 +1054,7 @@ const libFiles = async (dir, currentPath = '') => {
 };
 libFiles(path.join(process.cwd(), 'lib'));
 
-const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) => acc[key] = index === keys.length - 1 ? value : acc[key] || {}, obj);
+const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) => acc[key] = index === keys.length - 1 ? value : acc[key] || new Object(), obj);
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
