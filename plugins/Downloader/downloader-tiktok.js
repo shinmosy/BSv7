@@ -40,15 +40,14 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.aweme(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video description: ${video.description}\n` +
-                    `🔗 IDr: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.stats.total_views}\n` +
-                    `💬 Comments: ${video.stats.total_comment}\n` +
-                    `🔁 Shares: ${video.stats.total_share}\n` +
-                    `▶️ Download: ${video.stats.total_download}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.stats.total_views || ''}\n` +
+                    `💬 Comments: ${video.stats.total_comment || ''}\n` +
+                    `🔁 Shares: ${video.stats.total_share || ''}\n` +
+                    `▶️ Download: ${video.stats.total_download || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ aweme ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
@@ -62,11 +61,10 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.musicaldown(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `🎵 Music: ${video.music.title}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `🎵 Music: ${video.music.title || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ musicaldown ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
@@ -80,11 +78,10 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.savetik(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `🎵 Music: ${video.music.title}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `🎵 Music: ${video.music.title || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ savetik ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
@@ -98,13 +95,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.snaptik(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ snaptik ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
@@ -118,13 +114,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.snaptikpro(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ snaptikpro ]*`;
 
                 await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
@@ -138,13 +133,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.ssstik(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ ssstik ]*`;
 
                 await conn.sendFile(m.chat, video.videos || video.videos[0] || video.videos[1] || giflogo, "", caption, m);
@@ -158,15 +152,14 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.tikcdn(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video description: ${video.description}\n` +
-                    `🔗 IDr: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.stats.total_views}\n` +
-                    `💬 Comments: ${video.stats.total_comment}\n` +
-                    `🔁 Shares: ${video.stats.total_share}\n` +
-                    `▶️ Download: ${video.stats.total_download}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.stats.total_views || ''}\n` +
+                    `💬 Comments: ${video.stats.total_comment || ''}\n` +
+                    `🔁 Shares: ${video.stats.total_share || ''}\n` +
+                    `▶️ Download: ${video.stats.total_download || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ tikcdn ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || giflogo, "", caption, m);
@@ -180,13 +173,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.tikmate(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ tikmate ]*`;
 
                 await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
@@ -200,13 +192,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.tiktokdownloadr(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ tiktokdownloadr ]*`;
 
                 await conn.sendFile(m.chat, video.videos[0] || video.videos[1] || video.videos[2] || giflogo, "", caption, m);
@@ -220,15 +211,14 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.tikwm(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 IDr: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.stats.total_views}\n` +
-                    `💬 Comments: ${video.stats.total_comment}\n` +
-                    `🔁 Shares: ${video.stats.total_share}\n` +
-                    `▶️ Download: ${video.stats.total_download}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.stats.total_views || ''}\n` +
+                    `💬 Comments: ${video.stats.total_comment || ''}\n` +
+                    `🔁 Shares: ${video.stats.total_share || ''}\n` +
+                    `▶️ Download: ${video.stats.total_download || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ tikwm ]*`;
 
                 await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
@@ -242,13 +232,12 @@ let handler = async (m, {
             try {
                 const video = await tikTokDownloader.ttdownloader(inputs);
                 const caption = `${spas}*[ T I K T O K ]*\n` +
-                    `Video title: ${video.title}\n` +
-                    `🔗 ID: ${video.video_id}\n` +
-                    `👤 Author: ${video.author.name}\n` +
-                    `❤️ Views: ${video.total_views}\n` +
-                    `💬 Comments: ${video.total_comment}\n` +
-                    `🎵 Music: ${video.music.title} - ${video.music.author}\n` +
-                    `🖼️ Thumbnail URL: ${video.thumbnail}\n` +
+                    `🔗 ID: ${video.video_id || ''}\n` +
+                    `👤 Author: ${video.author.name || ''}\n` +
+                    `❤️ Views: ${video.total_views || ''}\n` +
+                    `💬 Comments: ${video.total_comment || ''}\n` +
+                    `🎵 Music: ${video.music.title} - ${video.music.author || ''}\n` +
+                    `🖼️ Thumbnail URL: ${video.thumbnail || ''}\n` +
                     `${spas}*[ ttdownloader ]*`;
 
                 await conn.sendFile(m.chat, video.videos || video.videos[0] || giflogo, "", caption, m);
@@ -429,14 +418,14 @@ async function Tiktokdl(url) {
 }
 
 function getVideoInfo(video) {
-    return `Video description: ${video.description}\n` +
-        `🔗 URL: ${video.url}\n` +
-        `👤 Author: ${video.author}\n` +
-        `❤️ Likes: ${video.likes}\n` +
-        `💬 Comments: ${video.comments}\n` +
-        `🔁 Shares: ${video.shares}\n` +
-        `▶️ Plays: ${video.playCount}\n` +
-        `🎵 Music: ${video.music.name} - ${video.music.author}\n` +
+    return `Video description: ${video.description || ''}\n` +
+        `🔗 URL: ${video.url || ''}\n` +
+        `👤 Author: ${video.author || ''}\n` +
+        `❤️ Likes: ${video.likes || ''}\n` +
+        `💬 Comments: ${video.comments || ''}\n` +
+        `🔁 Shares: ${video.shares || ''}\n` +
+        `▶️ Plays: ${video.playCount || ''}\n` +
+        `🎵 Music: ${video.music.name} - ${video.music.author || ''}\n` +
         `🖼️ Thumbnail URL: ${video.previewImageUrl}`;
 }
 
