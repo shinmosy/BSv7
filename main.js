@@ -40,7 +40,6 @@ import {
 import lodash from 'lodash';
 import ora from 'ora';
 import chalk from 'chalk';
-import clc from 'cli-color';
 import syntaxerror from 'syntax-error';
 import {
     tmpdir
@@ -81,7 +80,7 @@ const {
     PHONENUMBER_MCC,
     delay,
     DisconnectReason
-} = await (await import("@whiskeysockets/baileys")).default;
+} = await(await import("@whiskeysockets/baileys")).default;
 
 import readline from "readline";
 import parsePhoneNumber from 'awesome-phonenumber';
@@ -179,13 +178,13 @@ global.loadDatabase = async function loadDatabase() {
     try {
         await global.db.read();
         global.db.data = {
-            users: new Object(),
-            chats: new Object(),
-            stats: new Object(),
-            msgs: new Object(),
-            sticker: new Object(),
-            settings: new Object(),
-            ...(global.db.data || new Object())
+            users: {},
+            chats: {},
+            stats: {},
+            msgs: {},
+            sticker: {},
+            settings: {},
+            ...(global.db.data || {})
         };
         global.db.chain = chain(global.db.data);
     } catch (error) {
@@ -286,7 +285,7 @@ const connectionOptions = {
                     message: {
                         messageContextInfo: {
                             deviceListMetadataVersion: 2,
-                            deviceListMetadata: new Object()
+                            deviceListMetadata: {}
                         },
                         ...message
                     }
@@ -295,7 +294,7 @@ const connectionOptions = {
         }
         return message;
     },
-    msgRetryCounterMap: new Object(),
+    msgRetryCounterMap: {},
     logger,
     auth: {
         creds: authState.state.creds,
@@ -309,7 +308,7 @@ const connectionOptions = {
             let msg = await store.loadMessage(jid, key.id)
             return msg?.message || ""
         }
-        return proto.Message.fromObject(new Object());
+        return proto.Message.fromObject({});
     },
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
@@ -359,7 +358,7 @@ if (useMobile && !conn.authState.creds.registered) {
     const {
         registration
     } = conn.authState.creds || {
-        registration: new Object()
+        registration: {}
     }
     if (!registration.phoneNumber) {
         console.log(chalk.bold.cyan('╭──────────────────────────────────────···'));
@@ -433,7 +432,7 @@ conn.logger.info('\n🚩 W A I T I N G\n');
 if (!opts['test'] && global.db) {
     setInterval(async () => {
         if (global.db.data) await global.db.write(global.db.data);
-        if (opts['autocleartmp'] && (global.support || new Object()).find) {
+        if (opts['autocleartmp'] && (global.support || {}).find) {
             ['tmp', 'jadibot'].forEach((filename) => cp.spawn('find', [os.tmpdir(), filename, '-amin', '3', '-type', 'f', '-delete']));
         }
     }, 5 * 60 * 1000);
@@ -474,7 +473,7 @@ async function connectionUpdate(update) {
     }
 
     if (!global.db.data) {
-        loadDatabase();
+        await loadDatabase();
     }
 
     if (connection === 'connecting') {
@@ -542,7 +541,7 @@ async function connectionUpdate(update) {
 }
 
 const handleExit = (message, code = 1) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(message.yellow));
+  console.log((" Taylor-V2\n").main, ">>\n  ".info, (message.yellow));
   setImmediate(() => process.exit(code));
 };
 
@@ -555,23 +554,23 @@ handleError('SIGINT', 'Received SIGINT. Stopping the execution.');
 handleError('SIGTERM', 'Received SIGTERM. Exiting gracefully.');
 
 process.on('uncaughtException', (err) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Uncaught Exception: ").yellow, chalk.yellow(err.message).yellow, clc.bgRed.white(" Stack: ").yellow, err.stack.yellow);
+  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Uncaught Exception: ").yellow, (err.message).yellow, (" Stack: ").yellow, err.stack.yellow);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Unhandled Rejection: ").yellow, chalk.yellow(reason).yellow, clc.bgRed.white(" Promise: ").yellow, format(promise).yellow);
+  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Unhandled Rejection: ").yellow, (reason).yellow, (" Promise: ").yellow, format(promise).yellow);
 });
 
 process.on('warning', (warning) => {
-  console.warn(clc.bgYellow.black(" Taylor-V2 "), ">>", clc.bgYellow.black(" Warning: ").yellow, chalk.yellow(warning.message).yellow, clc.bgYellow.black(" Stack: ").yellow, warning.stack.yellow);
+  console.warn((" Taylor-V2\n").main, ">>\n  ".info, (" Warning: ").yellow, (warning.message).yellow, (" Stack: ").yellow, warning.stack.yellow);
 });
 
 process.on('rejectionHandled', (promise) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Rejection Handled: ").yellow, format(promise).yellow);
+  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Rejection Handled: ").yellow, format(promise).yellow);
 });
 
 process.on('uncaughtExceptionMonitor', (reason, promise) => {
-  console.log(clc.bgRed.white(" Taylor-V2 "), ">>", clc.bgRed.white(" Uncaught Exception Monitor: ").yellow, chalk.yellow(reason).yellow, clc.bgRed.white(" Promise: ").yellow, format(promise).yellow);
+  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Uncaught Exception Monitor: ").yellow, (reason).yellow, (" Promise: ").yellow, format(promise).yellow);
 });
 
 process.on('multipleResolves', () => {
@@ -579,11 +578,11 @@ process.on('multipleResolves', () => {
 });
 
 let isInit = true;
-let handler = await import('./handler.js');
+let handler = await(await import('./handler.js'));
 global.reloadHandler = async function(restatConn) {
     try {
-        const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error);
-        if (Object.keys(Handler || new Object()).length) handler = Handler;
+        const Handler = await(await import(`./handler.js?update=${Date.now()}`)).catch(console.error);
+        if (Object.keys(Handler || {}).length) handler = Handler;
     } catch (error) {
         console.error;
     }
@@ -591,7 +590,7 @@ global.reloadHandler = async function(restatConn) {
         const oldChats = global.conn.chats;
         try {
             global.conn.ws.close();
-        } catch {}
+        } catch (e) { console.error(e) }
         conn.ev.removeAllListeners();
         global.conn = makeWaSocket(connectionOptions, {
             chats: oldChats
@@ -669,7 +668,7 @@ global.reloadHandler = async function(restatConn) {
 
 const pluginFolder = path.resolve(directoryName, 'plugins');
 const pluginFilter = (filename) => /\.js$/.test(filename);
-global.plugins = new Object();
+global.plugins = {};
 
 async function filesInit() {
     const CommandsFiles = glob.sync(path.resolve(pluginFolder, '**/*.js'), {
@@ -680,8 +679,8 @@ async function filesInit() {
         const moduleName = path.join('/plugins', path.relative(pluginFolder, file));
 
         try {
-            const module = (await import(file)).default || (await import(file));
-            global.plugins[moduleName] = module;
+            const module = await(await import(file));
+            global.plugins[moduleName] = module.default || module;
             return { moduleName, success: true };
         } catch (e) {
             conn.logger.error(e);
@@ -751,7 +750,7 @@ global.reload = async (_ev, filename) => {
             if (err) {
                 conn.logger.error(`Syntax error while loading '${filename}'\n${format(err)}`);
             } else {
-                const module = await import(`${global.__filename(dir)}?update=${Date.now()}`);
+                const module = await(await import(`${global.__filename(dir)}?update=${Date.now()}`));
                 global.plugins[filename] = module.default || module;
             }
         } else {
@@ -776,7 +775,7 @@ async function FileEv(type, file) {
                 break;
             case 'change':
             case 'add':
-                const module = await import(`${resolvedFile}?update=${Date.now()}`);
+                const module = await(await import(`${resolvedFile}?update=${Date.now()}`));
                 global.plugins[resolvedFile] = module.default || module;
                 break;
         }
@@ -858,61 +857,41 @@ const steps = [
     clearTmp,
     clearSessions,
     filesInit,
+    libFiles,
     watchFiles,
     watchPluginStep,
-    reloadHandlerStep,
+    reloadHandler,
     _quickTest
 ];
 
-const delayBetweenSteps = 0;
-const mainSpinner = ora({
-    text: chalk.bold.yellow('Proses sedang berlangsung...\n'),
-        spinner: 'moon'
-}).start();
+async function executeSteps() {
+    return new Promise(async (resolve, reject) => {
+        const spinner = createSpinner('Executing steps...\n', 'moon');
+        spinner.start();
 
-const executeStep = async (step, index) => {
-    mainSpinner.text = chalk.bold.yellow(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} sedang berlangsung...\n`);
-    await delay(index * delayBetweenSteps);
-
-    try {
-        const result = await step();
-        mainSpinner.succeed(chalk.bold.green(`Proses ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)} berhasil diselesaikan!\n`));
-        return result;
-    } catch (error) {
-        mainSpinner.fail(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`));
-        console.error(chalk.bold.red(`Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`));
-        return `Error in step ${chalk.cyan(index + 1)}/${chalk.yellow(steps.length)}: ${error}\n`;
-    }
-};
-
-const executeAllSteps = async (steps) => {
-    try {
-        await Promise.all(steps.map((step, index) => {
-            return new Promise(resolve => {
-                setTimeout(async () => {
-                    const result = await executeStep(step, index);
-                    resolve(result);
-                }, index * delayBetweenSteps);
-            });
-        }));
-        mainSpinner.succeed(chalk.bold.green('Semua proses berhasil diselesaikan!\n'));
-    } catch (error) {
-        mainSpinner.fail(chalk.bold.red(`${error}`));
-    } finally {
-        mainSpinner.stop();
-    }
-};
-
-executeAllSteps(steps);
-
-async function reloadHandlerStep() {
-    try {
-        await global.reloadHandler().catch(console.error)
-        console.log(chalk.bold.green('Reload Handler Step selesai.'));
-    } catch (error) {
-        throw new Error(chalk.bold.red(`Error in reload handler step: ${error}`));
-    }
+        try {
+            for (const step of steps) {
+                spinner.render();
+                await step();
+                spinner.succeed(`${step.name.replace(/([A-Z])/g, ' $1').trim()} executed successfully\n`);
+            }
+            resolve();
+        } catch (error) {
+            spinner.fail(`Execution failed with error: ${error.message}\n`);
+            reject(error);
+        } finally {
+            spinner.stop();
+        }
+    });
 }
+
+executeSteps()
+    .then(() => {
+        console.log('All steps executed successfully');
+    })
+    .catch((error) => {
+        console.error('Error executing steps:', error);
+    });
 
 async function watchPluginStep() {
     try {
@@ -978,7 +957,7 @@ async function clearTmp() {
                         const stats = await statSync(filePath);
                         if (stats.isFile()) {
                             await unlinkSync(filePath);
-                            console.log('Successfully cleared tmp:', filePath);
+                            console.log('Successfully cleared tmp:'.main, filePath.info);
                             return filePath;
                         }
                     } catch (err) {
@@ -996,7 +975,7 @@ async function clearTmp() {
         console.error(`Error in clearTmp: ${err.message}`);
         return [];
     } finally {
-        setTimeout(clearTmp, 60 * 60 * 1000);
+        setTimeout(clearTmp, 45 * 60 * 1000);
     }
 }
 
@@ -1010,7 +989,7 @@ async function clearSessions(folder) {
                 const stats = await statSync(filePath);
                 if (stats.isFile() && file !== 'creds.json') {
                     await unlinkSync(filePath);
-                    console.log('Deleted session:', filePath);
+                    console.log('Deleted session:'.main, filePath.info);
                     return filePath;
                 }
             } catch (err) {
@@ -1026,35 +1005,35 @@ async function clearSessions(folder) {
     }
 }
 
-global.lib = new Object();
+const libFolder = path.resolve(directoryName, 'lib');
+const libFilter = (filename) => /\.js$/.test(filename);
+global.lib = {};
 
-const libFiles = async (dir, currentPath = '') => {
-  try {
-    const files = readdirSync(dir, { withFileTypes: true });
+async function libFiles() {
+    const CommandsFiles = glob.sync(path.resolve(libFolder, '**/*.js'), {
+        ignore: ['**/node_modules/**']
+    });
 
-    await Promise.all(files.map(async (file) => {
-      const filePath = path.join(dir, file.name);
-      const relativePath = path.join(currentPath, file.name);
+    await Promise.all(CommandsFiles.map(async (file) => {
+        const moduleName = path.join('/lib', path.relative(libFolder, file));
 
-      if (file.isFile() && /\.js$/i.test(file.name)) {
         try {
-          const module = (await import(filePath)).default || (await import(filePath));
-          setNestedObject(global.lib, relativePath.slice(0, -3), module);
-        } catch (importErr) {
-          console.error(`Error importing ${relativePath}:`, importErr);
+            const module = await(await import(file));
+            setNestedObject(global.lib, moduleName.slice(0, -3), module.default || module);
+        } catch (e) {
+            conn.logger.error(e);
+            delete global.lib[moduleName.slice(0, -3)];
         }
-      } else if (file.isDirectory()) {
-        await libFiles(filePath, relativePath);
-      }
     }));
-  } catch (readDirErr) {
-    console.error('Error reading directory:', readDirErr);
-    throw readDirErr;
-  }
-};
-libFiles(path.join(process.cwd(), 'lib'));
+    global.lib = Object.fromEntries(
+            Object.entries(global.lib[''].lib).sort(([a], [b]) => a.localeCompare(b))
+        );
+}
 
-const setNestedObject = (obj, path, value) => path.split('/').reduce((acc, key, index, keys) => acc[key] = index === keys.length - 1 ? value : acc[key] || new Object(), obj);
+const setNestedObject = (obj, path, value) =>
+  path.split('/').reduce((acc, key, index, keys) => {
+    return index === keys.length - 1 ? (acc[key] = value) : (acc[key] = acc[key] || {});
+  }, obj);
 
 function clockString(ms) {
     if (isNaN(ms)) return '-- Hari -- Jam -- Menit -- Detik';
