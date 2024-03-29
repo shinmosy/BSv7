@@ -147,9 +147,12 @@ protoType();
 serialize();
    
 global.API = Helper.API
-global.timestamp = {
-    start: new Date()
-}
+Object.assign(global, {
+	...Helper,
+	timestamp: {
+		start: Date.now()
+	}
+})
 
 const directoryName = global.__dirname(import.meta.url)
 global.opts = new Object(Helper.opts)
@@ -455,7 +458,7 @@ async function connectionUpdate(update) {
     } = update;
 
     if (connection) {
-        console.info("Taylor-V2".main, ">>", `Connection Status : ${connection}`.info);
+        console.info("Taylor-V2".main, ">>".yellow, `Connection Status : ${connection}`.info);
     }
 
     if (isNewLogin) {
@@ -480,7 +483,7 @@ async function connectionUpdate(update) {
         timeout++;
         console.log(chalk.bold.redBright('⚡ Mengaktifkan Bot, Mohon tunggu sebentar...'));
         if (timeout > 30) {
-            console.log("Taylor-V2".main, ">>", `Session logout after 30 times reconnecting, This action will save your number from banned!`.warn);
+            console.log("Taylor-V2".main, ">>".yellow, `Session logout after 30 times reconnecting, This action will save your number from banned!`.warn);
             setImmediate(() => process.exit(1));
         }
     }
@@ -495,7 +498,7 @@ async function connectionUpdate(update) {
             const pingSpeed = new Date() - currentTime;
             const formattedPingSpeed = pingSpeed < 0 ? 'N/A' : `${pingSpeed}ms`;
 
-            console.log("Taylor-V2".main, ">>", `Client connected on: ${conn?.user?.id.split(":")[0] || global.namebot}`.info);
+            console.log("Taylor-V2".main, ">>".yellow, `Client connected on: ${conn?.user?.id.split(":")[0] || global.namebot}`.info);
             const infoMsg = `🤖 *Bot Info* 🤖
 🕰️ *Current Time:* ${currentTime}
 👤 *Name:* *${name || 'Taylor'}*
@@ -541,7 +544,7 @@ async function connectionUpdate(update) {
 }
 
 const handleExit = (message, code = 1) => {
-  console.log((" Taylor-V2\n").main, ">>\n  ".info, (message.yellow));
+  console.log(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(message));
   setImmediate(() => process.exit(code));
 };
 
@@ -554,23 +557,23 @@ handleError('SIGINT', 'Received SIGINT. Stopping the execution.');
 handleError('SIGTERM', 'Received SIGTERM. Exiting gracefully.');
 
 process.on('uncaughtException', (err) => {
-  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Uncaught Exception: ").yellow, (err.message).yellow, (" Stack: ").yellow, err.stack.yellow);
+  console.log(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(" Uncaught Exception: "), chalk.yellow(err.message), chalk.yellow(" Stack: "), chalk.yellow(err.stack));
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Unhandled Rejection: ").yellow, (reason).yellow, (" Promise: ").yellow, format(promise).yellow);
+  console.log(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(" Unhandled Rejection: "), chalk.yellow(reason), chalk.yellow(" Promise: "), chalk.yellow(format(promise)));
 });
 
 process.on('warning', (warning) => {
-  console.warn((" Taylor-V2\n").main, ">>\n  ".info, (" Warning: ").yellow, (warning.message).yellow, (" Stack: ").yellow, warning.stack.yellow);
+  console.warn(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(" Warning: "), chalk.yellow(warning.message), chalk.yellow(" Stack: "), chalk.yellow(warning.stack));
 });
 
 process.on('rejectionHandled', (promise) => {
-  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Rejection Handled: ").yellow, format(promise).yellow);
+  console.log(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(" Rejection Handled: "), chalk.yellow(format(promise)));
 });
 
 process.on('uncaughtExceptionMonitor', (reason, promise) => {
-  console.log((" Taylor-V2\n").main, ">>\n  ".info, (" Uncaught Exception Monitor: ").yellow, (reason).yellow, (" Promise: ").yellow, format(promise).yellow);
+  console.log(chalk.bgYellow.black(" Taylor-V2\n"), chalk.bgBlue.white(">>\n"), chalk.green("info"), chalk.yellow(" Uncaught Exception Monitor: "), chalk.yellow(reason), chalk.yellow(" Promise: "), chalk.yellow(format(promise)));
 });
 
 process.on('multipleResolves', () => {
@@ -789,7 +792,7 @@ async function FileEv(type, file) {
 }
 
 async function watchFiles() {
-    const watcher = chokidar.watch(['./**/*.js', '!./node_modules/**/*.js'], {
+    const watcher = chokidar.watch(['./plugins/**/*.js', '!./node_modules/**/*.js'], {
         ignored: /(^|[/\\])\../,
         ignoreInitial: true,
         persistent: true,
@@ -832,7 +835,7 @@ async function watchFiles() {
 
 const createSpinner = (text, spinnerType) => {
     const spinner = ora({
-        text,
+        text: chalk.yellow(text),
         spinner: spinnerType,
         discardStdin: false,
     });
@@ -840,58 +843,61 @@ const createSpinner = (text, spinnerType) => {
     return {
         start: () => spinner.start(),
         succeed: (successText) => {
-            spinner.succeed(chalk.bold.green(`${successText}\n`));
+            spinner.succeed(chalk.green.bold(`${successText}\n`));
             spinner.stopAndPersist({
                 symbol: chalk.green.bold('✔')
             });
         },
-        fail: (errorText) => spinner.fail(chalk.bold.red(`${errorText}\n`)),
+        fail: (errorText) => spinner.fail(chalk.red.bold(`${errorText}\n`)),
         stop: () => spinner.stop(),
         render: () => spinner.render(),
     };
 };
 
-const steps = [
-    loadDatabase,
-    loadConfig,
-    clearTmp,
-    clearSessions,
-    filesInit,
-    libFiles,
-    watchFiles,
-    watchPluginStep,
-    reloadHandler,
-    _quickTest
-];
+const executeStep = async (step, spinner) => {
+    try {
+        spinner.render();
+        await step();
+        spinner.succeed(chalk.blue.bold(step.name.replace(/([A-Z])/g, ' $1').trim()) + ' executed successfully\n');
+    } catch (error) {
+        spinner.fail(`Execution failed with error: ${chalk.red.bold(error.message)}\n`);
+        throw error;
+    }
+};
 
-async function executeSteps() {
-    return new Promise(async (resolve, reject) => {
-        const spinner = createSpinner('Executing steps...\n', 'moon');
-        spinner.start();
+const loadDatabaseStep = async (spinner) => executeStep(loadDatabase, spinner);
+const loadConfigStep = async (spinner) => executeStep(loadConfig, spinner);
+const clearTmpStep = async (spinner) => executeStep(clearTmp, spinner);
+const clearSessionsStep = async (spinner) => executeStep(clearSessions, spinner);
+const filesInitStep = async (spinner) => executeStep(filesInit, spinner);
+const libFilesStep = async (spinner) => executeStep(libFiles, spinner);
+const watchFilesStep = async (spinner) => executeStep(watchFiles, spinner);
+const watchPluginStepStep = async (spinner) => executeStep(watchPluginStep, spinner);
+const reloadHandlerStep = async (spinner) => executeStep(reloadHandler, spinner);
+const quickTestStep = async (spinner) => executeStep(_quickTest, spinner);
 
-        try {
-            for (const step of steps) {
-                spinner.render();
-                await step();
-                spinner.succeed(`${step.name.replace(/([A-Z])/g, ' $1').trim()} executed successfully\n`);
-            }
-            resolve();
-        } catch (error) {
-            spinner.fail(`Execution failed with error: ${error.message}\n`);
-            reject(error);
-        } finally {
-            spinner.stop();
-        }
-    });
-}
+const executeSteps = async () => {
+    const spinner = createSpinner('Executing steps...', 'moon');
+    spinner.start();
 
-executeSteps()
-    .then(() => {
-        console.log('All steps executed successfully');
-    })
-    .catch((error) => {
-        console.error('Error executing steps:', error);
-    });
+    try {
+        await loadDatabaseStep(spinner).then(() => loadConfigStep(spinner)).then(() => clearTmpStep(spinner)).then(() => clearSessionsStep(spinner)).then(() => filesInitStep(spinner)).then(() => libFilesStep(spinner)).then(() => watchFilesStep(spinner)).then(() => watchPluginStepStep(spinner)).then(() => reloadHandlerStep(spinner)).then(() => quickTestStep(spinner));
+
+        spinner.stop();
+        console.log(chalk.green('All steps executed successfully\n'));
+    } catch (error) {
+        spinner.stop();
+        console.error(chalk.red('Error executing steps:', error));
+        throw error;
+    }
+};
+
+(async () => {
+    try {
+        await executeSteps();
+    } catch (error) {
+    }
+})();
 
 async function watchPluginStep() {
     try {
